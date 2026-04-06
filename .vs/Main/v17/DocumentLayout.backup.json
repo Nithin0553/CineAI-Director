@@ -1,0 +1,235 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "D:\\Research\\CineAI-Director\\Main\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|D:\\Research\\CineAI-Director\\Main\\assets\\scripts\\cinematics\\shotplanner.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\cinematics\\shotplanner.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|D:\\Research\\CineAI-Director\\Main\\assets\\scripts\\cinematics\\actionplanner.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\cinematics\\actionplanner.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|D:\\Research\\CineAI-Director\\Main\\assets\\scripts\\timeline\\timelinebuilder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\timeline\\timelinebuilder.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|d:\\research\\cineai-director\\main\\assets\\scripts\\runtime\\cutscenecompiler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\runtime\\cutscenecompiler.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|D:\\Research\\CineAI-Director\\Main\\assets\\scripts\\runtime\\cutscenerunner.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\runtime\\cutscenerunner.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{6EDBA353-FFBD-3D94-7137-D6D725753550}|Assembly-CSharp-Editor.csproj|D:\\Research\\CineAI-Director\\Main\\assets\\editor\\cutscenegeneratorwindow.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{6EDBA353-FFBD-3D94-7137-D6D725753550}|Assembly-CSharp-Editor.csproj|solutionrelative:assets\\editor\\cutscenegeneratorwindow.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|d:\\research\\cineai-director\\main\\assets\\scripts\\cinematics\\cameramotioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\cinematics\\cameramotioncontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|D:\\Research\\CineAI-Director\\Main\\assets\\scripts\\bindings\\scenebindingresolver.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\bindings\\scenebindingresolver.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|D:\\Research\\CineAI-Director\\Main\\assets\\scripts\\cinematics\\plannedaction.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\cinematics\\plannedaction.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|D:\\Research\\CineAI-Director\\Main\\assets\\scripts\\cinematics\\plannedshot.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\cinematics\\plannedshot.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|D:\\Research\\CineAI-Director\\Main\\assets\\scripts\\core\\beatscriptloader.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\core\\beatscriptloader.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|D:\\Research\\CineAI-Director\\Main\\assets\\scripts\\core\\beatlistwrapper.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\core\\beatlistwrapper.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|D:\\Research\\CineAI-Director\\Main\\assets\\scripts\\core\\beat.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{DD8BB905-17D1-AAA6-C8A2-213488C298D6}|Assembly-CSharp.csproj|solutionrelative:assets\\scripts\\core\\beat.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 6,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 6,
+              "Title": "CameraMotionController.cs",
+              "DocumentMoniker": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Cinematics\\CameraMotionController.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Cinematics\\CameraMotionController.cs",
+              "ToolTip": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Cinematics\\CameraMotionController.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Cinematics\\CameraMotionController.cs",
+              "ViewState": "AgIAADoAAAAAAAAAAAAowFUAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-05T22:55:13.737Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "CutsceneGeneratorWindow.cs",
+              "DocumentMoniker": "D:\\Research\\CineAI-Director\\Main\\Assets\\Editor\\CutsceneGeneratorWindow.cs",
+              "RelativeDocumentMoniker": "Assets\\Editor\\CutsceneGeneratorWindow.cs",
+              "ToolTip": "D:\\Research\\CineAI-Director\\Main\\Assets\\Editor\\CutsceneGeneratorWindow.cs",
+              "RelativeToolTip": "Assets\\Editor\\CutsceneGeneratorWindow.cs",
+              "ViewState": "AgIAACEAAAAAAAAAAAAwwDoAAAAGAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-05T22:05:21.47Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "CutsceneRunner.cs",
+              "DocumentMoniker": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Runtime\\CutsceneRunner.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Runtime\\CutsceneRunner.cs",
+              "ToolTip": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Runtime\\CutsceneRunner.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Runtime\\CutsceneRunner.cs",
+              "ViewState": "AgIAABIAAAAAAAAAAAAwwCsAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-05T22:04:59.726Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "CutsceneCompiler.cs",
+              "DocumentMoniker": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Runtime\\CutsceneCompiler.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Runtime\\CutsceneCompiler.cs",
+              "ToolTip": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Runtime\\CutsceneCompiler.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Runtime\\CutsceneCompiler.cs",
+              "ViewState": "AgIAAHUAAAAAAAAAAAAkwJgAAAAFAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-05T21:41:24.096Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "TimelineBuilder.cs",
+              "DocumentMoniker": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Timeline\\TimelineBuilder.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Timeline\\TimelineBuilder.cs",
+              "ToolTip": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Timeline\\TimelineBuilder.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Timeline\\TimelineBuilder.cs",
+              "ViewState": "AgIAAHgAAAAAAAAAAAAowIYAAAAoAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-05T21:41:03.031Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "ActionPlanner.cs",
+              "DocumentMoniker": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Cinematics\\ActionPlanner.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Cinematics\\ActionPlanner.cs",
+              "ToolTip": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Cinematics\\ActionPlanner.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Cinematics\\ActionPlanner.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAkAAAAiAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-05T21:36:22.94Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "ShotPlanner.cs",
+              "DocumentMoniker": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Cinematics\\ShotPlanner.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Cinematics\\ShotPlanner.cs",
+              "ToolTip": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Cinematics\\ShotPlanner.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Cinematics\\ShotPlanner.cs",
+              "ViewState": "AgIAAFgAAAAAAAAAAAAowHMAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-05T21:35:57.657Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 8,
+              "Title": "PlannedAction.cs",
+              "DocumentMoniker": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Cinematics\\PlannedAction.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Cinematics\\PlannedAction.cs",
+              "ToolTip": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Cinematics\\PlannedAction.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Cinematics\\PlannedAction.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAsAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-05T21:35:35.214Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
+              "Title": "PlannedShot.cs",
+              "DocumentMoniker": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Cinematics\\PlannedShot.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Cinematics\\PlannedShot.cs",
+              "ToolTip": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Cinematics\\PlannedShot.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Cinematics\\PlannedShot.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAA4AAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-05T21:35:14.858Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 7,
+              "Title": "SceneBindingResolver.cs",
+              "DocumentMoniker": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Bindings\\SceneBindingResolver.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Bindings\\SceneBindingResolver.cs",
+              "ToolTip": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Bindings\\SceneBindingResolver.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Bindings\\SceneBindingResolver.cs",
+              "ViewState": "AgIAAF8AAAAAAAAAAAA9wHYAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-05T21:20:42.705Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "BeatScriptLoader.cs",
+              "DocumentMoniker": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Core\\BeatScriptLoader.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Core\\BeatScriptLoader.cs",
+              "ToolTip": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Core\\BeatScriptLoader.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Core\\BeatScriptLoader.cs",
+              "ViewState": "AgIAAA0AAAAAAAAAAAAQwBUAAAAJAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-05T21:14:30.816Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 11,
+              "Title": "BeatListWrapper.cs",
+              "DocumentMoniker": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Core\\BeatListWrapper.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Core\\BeatListWrapper.cs",
+              "ToolTip": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Core\\BeatListWrapper.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Core\\BeatListWrapper.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAYAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-05T21:14:13.112Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
+              "Title": "Beat.cs",
+              "DocumentMoniker": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Core\\Beat.cs",
+              "RelativeDocumentMoniker": "Assets\\Scripts\\Core\\Beat.cs",
+              "ToolTip": "D:\\Research\\CineAI-Director\\Main\\Assets\\Scripts\\Core\\Beat.cs",
+              "RelativeToolTip": "Assets\\Scripts\\Core\\Beat.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABgAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-05T21:13:31.277Z"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
