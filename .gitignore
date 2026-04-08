@@ -30,3 +30,12 @@ UserSettings/
 
 .DS_Store
 Thumbs.db
+.vs/
+Library/
+Temp/
+Obj/
+Build/
+Builds/
+Logs/
+UserSettings/
+Assets/_Recovery/

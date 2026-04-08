@@ -14,7 +14,9 @@ public class TimelineBuilder : MonoBehaviour
 {
     public string outputFolder = "Assets/GeneratedCutscenes";
 
+    // ==============================
     // ✅ CREATE / LOAD TIMELINE
+    // ==============================
     public TimelineAsset CreateTimelineAsset(string timelineName)
     {
 #if UNITY_EDITOR
@@ -38,7 +40,9 @@ public class TimelineBuilder : MonoBehaviour
 #endif
     }
 
+    // ==============================
     // ✅ TRACK CREATION
+    // ==============================
     public AnimationTrack CreateAnimationTrack(TimelineAsset timeline, string trackName)
     {
         return timeline.CreateTrack<AnimationTrack>(null, trackName);
@@ -64,7 +68,9 @@ public class TimelineBuilder : MonoBehaviour
         return timeline.CreateTrack<CinemachineTrack>(null, trackName);
     }
 
+    // ==============================
     // ✅ CLIP ADDERS
+    // ==============================
 
     public void AddActivationClip(ActivationTrack track, double start, double duration)
     {
@@ -74,15 +80,35 @@ public class TimelineBuilder : MonoBehaviour
         clip.displayName = "Active";
     }
 
-    public void AddAnimationPlaceholderClip(AnimationTrack track, double start, double duration, string displayName)
+    // 🔥 FINAL FIX: REAL ANIMATION ASSIGNMENT
+    public void AddAnimationClip(
+        AnimationTrack track,
+        double start,
+        double duration,
+        string animationName)
     {
         var clip = track.CreateClip<AnimationPlayableAsset>();
         clip.start = start;
         clip.duration = duration;
-        clip.displayName = displayName;
+        clip.displayName = animationName;
+
+        AnimationPlayableAsset asset = clip.asset as AnimationPlayableAsset;
+
+        // 🔥 LOAD FROM RESOURCES
+        AnimationClip anim = Resources.Load<AnimationClip>("Animations/" + animationName);
+
+        if (anim == null)
+        {
+            Debug.LogWarning("⚠ Animation not found in Resources/Animations/: " + animationName);
+            return;
+        }
+
+        asset.clip = anim;
     }
 
-    // ✅ 🔥 FIXED CINEMACHINE SHOT CREATION
+    // ==============================
+    // 🎥 CINEMACHINE SHOTS
+    // ==============================
     public CinemachineShot AddCinemachineShotClip(
         CinemachineTrack track,
         PlayableDirector director,
@@ -98,25 +124,22 @@ public class TimelineBuilder : MonoBehaviour
 
         CinemachineShot shot = clip.asset as CinemachineShot;
 
-        // ✅ Create unique reference ID
         string guid = System.Guid.NewGuid().ToString();
 
-        // ✅ Use correct type for Timeline
         ExposedReference<CinemachineVirtualCameraBase> camRef =
             new ExposedReference<CinemachineVirtualCameraBase>();
 
         camRef.exposedName = guid;
-
-        // ✅ Assign to shot
         shot.VirtualCamera = camRef;
 
-        // ✅ Bind actual camera instance
         director.SetReferenceValue(guid, cameraInstance);
 
         return shot;
     }
 
-    // ✅ SAVE TIMELINE
+    // ==============================
+    // 💾 SAVE TIMELINE
+    // ==============================
     public void SaveTimeline(TimelineAsset timeline)
     {
 #if UNITY_EDITOR

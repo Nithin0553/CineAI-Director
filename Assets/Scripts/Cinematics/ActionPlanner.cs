@@ -14,7 +14,7 @@ public class ActionPlanner : MonoBehaviour
         // 🚶 WALK
         if (act.Contains("walk"))
         {
-            action.animationState = "Walk";
+            action.animationState = "Walking";
             action.useRootMotion = true;
             action.moveTarget = focus;
         }
@@ -27,7 +27,7 @@ public class ActionPlanner : MonoBehaviour
         // 👀 LOOK
         else if (act.Contains("look"))
         {
-            action.animationState = "Look";
+            action.animationState = "Idle";
             action.useRootMotion = false;
         }
         else

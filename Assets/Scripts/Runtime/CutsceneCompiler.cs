@@ -1,6 +1,4 @@
-﻿// Assets/Scripts/Runtime/CutsceneCompiler.cs
-
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
@@ -8,7 +6,6 @@ using Unity.Cinemachine;
 
 public class CutsceneCompiler : MonoBehaviour
 {
-    [Header("Core Systems")]
     public BeatScriptLoader beatScriptLoader;
     public SceneBindingResolver sceneBindingResolver;
     public ShotPlanner shotPlanner;
@@ -16,11 +13,9 @@ public class CutsceneCompiler : MonoBehaviour
     public TimelineBuilder timelineBuilder;
     public PlayableDirector playableDirector;
 
-    [Header("Input")]
     public string beatScriptName = "scene1";
     public string timelineAssetName = "scene1";
 
-    [Header("Generated Cameras")]
     public Transform generatedCameraRoot;
 
     private readonly List<GameObject> spawnedCameraObjects = new List<GameObject>();
@@ -28,24 +23,17 @@ public class CutsceneCompiler : MonoBehaviour
     [ContextMenu("Generate Cutscene Timeline")]
     public void GenerateCutscene()
     {
-        if (!ValidateDependencies())
-            return;
+        if (!ValidateDependencies()) return;
 
         Beat[] beats = beatScriptLoader.LoadBeats(beatScriptName);
-        if (beats == null || beats.Length == 0)
-        {
-            Debug.LogError("No beats available.");
-            return;
-        }
+        if (beats == null || beats.Length == 0) return;
 
         TimelineAsset timeline = timelineBuilder.CreateTimelineAsset(timelineAssetName);
-        if (timeline == null)
-            return;
 
         ClearExistingTracks(timeline);
         ClearSpawnedCameras();
 
-        CinemachineTrack cinemachineTrack =
+        CinemachineTrack cineTrack =
             timelineBuilder.CreateCinemachineTrack(timeline, "Cinemachine Shots");
 
         Dictionary<string, AnimationTrack> actorTracks = new Dictionary<string, AnimationTrack>();
@@ -58,98 +46,91 @@ public class CutsceneCompiler : MonoBehaviour
             Transform speaker = sceneBindingResolver.ResolveSpeaker(beat.speaker);
             Transform focus = sceneBindingResolver.ResolveFocus(beat.focus_target);
 
-            PlannedShot plannedShot = shotPlanner.PlanShot(beat, speaker, focus);
-            PlannedAction plannedAction = actionPlanner.PlanAction(beat, speaker, focus);
+            PlannedShot shot = shotPlanner.PlanShot(beat, speaker, focus);
+            PlannedAction action = actionPlanner.PlanAction(beat, speaker, focus);
 
-            Debug.Log($"🎬 Beat {beat.beat_id} → {plannedShot.shotType}");
+            CinemachineCamera cam = CreateShotCamera(beat, shot);
 
-            // 🎥 CREATE CAMERA
-            CinemachineCamera vcam = CreateShotCamera(beat, plannedShot);
-
-            // 🎬 ADD TO TIMELINE (FIXED)
             timelineBuilder.AddCinemachineShotClip(
-                cinemachineTrack,
+                cineTrack,
                 playableDirector,
                 currentTime,
                 beat.duration,
                 "Shot_" + beat.beat_id,
-                vcam
+                cam
             );
 
-            // 🎭 ANIMATION TRACKS
+            // 🎭 FIXED ANIMATION BLOCK
             if (speaker != null)
             {
-                string actorKey = speaker.name;
+                string key = speaker.name;
 
-                if (!actorTracks.ContainsKey(actorKey))
-                    actorTracks.Add(actorKey,
-                        timelineBuilder.CreateAnimationTrack(timeline, actorKey + "_Animation"));
+                if (!actorTracks.ContainsKey(key))
+                    actorTracks.Add(key,
+                        timelineBuilder.CreateAnimationTrack(timeline, key + "_Animation"));
 
-                if (!activationTracks.ContainsKey(actorKey))
-                    activationTracks.Add(actorKey,
-                        timelineBuilder.CreateActivationTrack(timeline, actorKey + "_Activation"));
+                if (!activationTracks.ContainsKey(key))
+                    activationTracks.Add(key,
+                        timelineBuilder.CreateActivationTrack(timeline, key + "_Activation"));
 
-                timelineBuilder.AddAnimationPlaceholderClip(
-                    actorTracks[actorKey],
+                // ✅ USE NEW FUNCTION
+                timelineBuilder.AddAnimationClip(
+                    actorTracks[key],
                     currentTime,
-                    plannedAction.duration,
-                    plannedAction.animationState + "_Beat_" + beat.beat_id
+                    action.duration,
+                    action.animationState
                 );
 
                 timelineBuilder.AddActivationClip(
-                    activationTracks[actorKey],
+                    activationTracks[key],
                     currentTime,
-                    plannedAction.duration
+                    action.duration
                 );
             }
 
             currentTime += beat.duration;
         }
 
-        BindTimelineTracks(actorTracks, activationTracks);
+        BindTracks(actorTracks, activationTracks);
 
         timelineBuilder.SaveTimeline(timeline);
 
         playableDirector.playableAsset = timeline;
         playableDirector.RebuildGraph();
 
-        Debug.Log("✅ CUTSCENE GENERATED SUCCESSFULLY");
+        Debug.Log("✅ CUTSCENE GENERATED");
     }
 
-    // 🎥 CAMERA CREATION (AUTOMATIC)
-    private CinemachineCamera CreateShotCamera(Beat beat, PlannedShot plannedShot)
+    private CinemachineCamera CreateShotCamera(Beat beat, PlannedShot shot)
     {
-        GameObject camObject = new GameObject($"VCam_Beat_{beat.beat_id}_{plannedShot.shotType}");
+        GameObject camObject = new GameObject("VCam_" + beat.beat_id);
 
         if (generatedCameraRoot != null)
             camObject.transform.SetParent(generatedCameraRoot);
 
         spawnedCameraObjects.Add(camObject);
 
-        CinemachineCamera vcam = camObject.AddComponent<CinemachineCamera>();
-        CinemachineFollow follow = camObject.AddComponent<CinemachineFollow>();
+        CinemachineCamera cam = camObject.AddComponent<CinemachineCamera>();
 
-        vcam.Follow = plannedShot.followTarget;
-        vcam.LookAt = plannedShot.lookTarget;
+        if (shot.movementType != "orbit")
+        {
+            var follow = camObject.AddComponent<CinemachineFollow>();
+            follow.FollowOffset = shot.offset;
+        }
 
-        follow.FollowOffset = plannedShot.offset;
+        cam.Follow = shot.followTarget;
+        cam.LookAt = shot.lookTarget;
 
-        // 🎯 POSITION INITIAL
-        if (plannedShot.followTarget != null)
-            camObject.transform.position = plannedShot.followTarget.position + plannedShot.offset;
+        if (shot.followTarget != null)
+            camObject.transform.position = shot.followTarget.position + shot.offset;
 
-        if (plannedShot.lookTarget != null)
-            camObject.transform.LookAt(plannedShot.lookTarget);
+        if (shot.lookTarget != null)
+            camObject.transform.LookAt(shot.lookTarget);
 
-        // 🔥 ADD CINEMATIC MOTION
         CameraMotionController motion = camObject.AddComponent<CameraMotionController>();
-        motion.Initialize(
-            plannedShot.followTarget,
-            plannedShot.movementType,
-            plannedShot.offset
-        );
+        motion.Initialize(shot.followTarget, shot.movementType, shot.offset);
 
-        return vcam;
+        return cam;
     }
 
     private bool ValidateDependencies()
@@ -161,7 +142,7 @@ public class CutsceneCompiler : MonoBehaviour
             timelineBuilder == null ||
             playableDirector == null)
         {
-            Debug.LogError("❌ Missing references in CutsceneCompiler");
+            Debug.LogError("❌ Missing references!");
             return false;
         }
         return true;
@@ -169,17 +150,22 @@ public class CutsceneCompiler : MonoBehaviour
 
     private void ClearExistingTracks(TimelineAsset timeline)
     {
-        var tracks = timeline.GetOutputTracks();
-        List<TrackAsset> toDelete = new List<TrackAsset>();
-
-        foreach (var t in tracks)
-            toDelete.Add(t);
-
-        foreach (var t in toDelete)
-            timeline.DeleteTrack(t);
+        foreach (var track in timeline.GetOutputTracks())
+            timeline.DeleteTrack(track);
     }
 
-    private void BindTimelineTracks(
+    private void ClearSpawnedCameras()
+    {
+        for (int i = spawnedCameraObjects.Count - 1; i >= 0; i--)
+        {
+            if (spawnedCameraObjects[i] != null)
+                DestroyImmediate(spawnedCameraObjects[i]);
+        }
+
+        spawnedCameraObjects.Clear();
+    }
+
+    private void BindTracks(
         Dictionary<string, AnimationTrack> actorTracks,
         Dictionary<string, ActivationTrack> activationTracks)
     {
@@ -200,16 +186,5 @@ public class CutsceneCompiler : MonoBehaviour
 
             playableDirector.SetGenericBinding(kvp.Value, actor);
         }
-    }
-
-    private void ClearSpawnedCameras()
-    {
-        for (int i = spawnedCameraObjects.Count - 1; i >= 0; i--)
-        {
-            if (spawnedCameraObjects[i] != null)
-                DestroyImmediate(spawnedCameraObjects[i]);
-        }
-
-        spawnedCameraObjects.Clear();
     }
 }

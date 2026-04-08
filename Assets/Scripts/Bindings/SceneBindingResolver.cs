@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Linq;
+using UnityEngine.SceneManagement;
 
 public class SceneBindingResolver : MonoBehaviour
 {
@@ -103,8 +104,9 @@ public class SceneBindingResolver : MonoBehaviour
     {
         keyword = keyword.ToLower();
 
-        GameObject[] allObjects = GameObject.FindObjectsOfType<GameObject>();
-
+        // ✅ Using FindObjectsOfType for older Unity versions (2021 and earlier)
+        GameObject[] allObjects = GameObject.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+        // ✅ Look for partial match by name (case insensitive)
         return allObjects.FirstOrDefault(obj =>
             obj.name.ToLower().Contains(keyword)
         );
