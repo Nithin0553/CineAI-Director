@@ -4,34 +4,31 @@ public class CameraMotionController : MonoBehaviour
 {
     private Transform target;
     private string movementType;
+
     private Transform orbitPivot;
+    private Vector3 offset;
 
     private float orbitSpeed = 20f;
     private float dollySpeed = 2f;
 
-    private Vector3 offset;
-
-    public void Initialize(Transform followTarget, string movement, Vector3 camOffset)
+    // INIT
+    public void Initialize(Transform followTarget, string movement, Vector3 initialOffset)
     {
         target = followTarget;
         movementType = movement;
-        offset = camOffset;
+        offset = initialOffset;
 
-        if (target == null) return;
-
-        if (movementType == "orbit")
+        if (movementType == "orbit" && target != null)
         {
             GameObject pivot = new GameObject("OrbitPivot");
+            pivot.transform.position = target.position;
 
-            Vector3 basePos = target.position;
-            basePos.y += 2f; // 🔥 FIX HEIGHT
-
-            pivot.transform.position = basePos;
             orbitPivot = pivot.transform;
 
             transform.SetParent(orbitPivot);
+
+            // KEEP ORIGINAL OFFSET
             transform.localPosition = offset;
-            transform.localRotation = Quaternion.identity;
         }
     }
 
@@ -43,10 +40,6 @@ public class CameraMotionController : MonoBehaviour
         {
             case "orbit":
                 Orbit();
-                break;
-
-            case "pan":
-                Pan();
                 break;
 
             case "dolly_in":
@@ -63,44 +56,57 @@ public class CameraMotionController : MonoBehaviour
         }
     }
 
+    // 🎯 FIXED ORBIT (AUTO, NOT INPUT)
     void Orbit()
     {
         if (orbitPivot == null) return;
 
-        orbitPivot.Rotate(Vector3.up, orbitSpeed * Time.deltaTime);
+        orbitPivot.position = target.position;
+
+        orbitPivot.Rotate(Vector3.up * orbitSpeed * Time.deltaTime);
+
         transform.LookAt(target);
     }
 
-    void Pan()
-    {
-        transform.RotateAround(target.position, Vector3.up, orbitSpeed * 0.5f * Time.deltaTime);
-        transform.LookAt(target);
-    }
-
+    // 🎯 DOLLY IN
     void DollyIn()
     {
-        transform.position = Vector3.MoveTowards(
-            transform.position,
-            target.position,
-            dollySpeed * Time.deltaTime
-        );
-        transform.LookAt(target);
-    }
+        Vector3 targetPos = target.position + offset * 0.3f;
 
-    void DollyOut()
-    {
-        Vector3 dir = (transform.position - target.position).normalized;
-        transform.position += dir * dollySpeed * Time.deltaTime;
-        transform.LookAt(target);
-    }
-
-    void Follow()
-    {
         transform.position = Vector3.Lerp(
             transform.position,
-            target.position + offset,
-            Time.deltaTime * 2f
+            targetPos,
+            Time.deltaTime * dollySpeed
         );
+
+        transform.LookAt(target);
+    }
+
+    // 🎯 DOLLY OUT
+    void DollyOut()
+    {
+        Vector3 targetPos = target.position + offset * 2f;
+
+        transform.position = Vector3.Lerp(
+            transform.position,
+            targetPos,
+            Time.deltaTime * dollySpeed
+        );
+
+        transform.LookAt(target);
+    }
+
+    // 🎯 FOLLOW (SMOOTH)
+    void Follow()
+    {
+        Vector3 targetPos = target.position + offset;
+
+        transform.position = Vector3.Lerp(
+            transform.position,
+            targetPos,
+            Time.deltaTime * 3f
+        );
+
         transform.LookAt(target);
     }
 }
