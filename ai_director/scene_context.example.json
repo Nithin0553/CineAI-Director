@@ -1,0 +1,28 @@
+{
+  "project_name": "CineAI Director",
+  "characters": ["UNCLE_BEN"],
+  "objects": ["ROCK"],
+  "locations": ["Farm Area"],
+  "available_animations": ["Idle", "Walk", "Reaction", "LookAround"],
+  "default_character_start": {
+    "x": -5.686945,
+    "y": -0.174587,
+    "z": 12.0
+  },
+  "default_character_middle": {
+    "x": -5.686945,
+    "y": -0.174587,
+    "z": 4.0
+  },
+  "default_character_end": {
+    "x": -5.686945,
+    "y": -0.174587,
+    "z": -1.0
+  },
+  "default_object_position": {
+    "x": -5.686945,
+    "y": -0.174587,
+    "z": -3.0
+  },
+  "notes": "This is the default test context for Uncle Ben walking toward a mysterious rock."
+}

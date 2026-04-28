@@ -1,0 +1,258 @@
+{
+  "project": "CineAI Director",
+  "scene_id": "scene_001",
+  "scene_title": "Generated Cutscene",
+  "characters": [
+    "UNCLE_BEN"
+  ],
+  "objects": [
+    "ROCK"
+  ],
+  "locations": [
+    "Farm Area"
+  ],
+  "beats": [
+    {
+      "beat_id": 1,
+      "purpose": "Establish the mysterious object and location.",
+      "speaker": "",
+      "dialogue": "",
+      "action": "Aerial establishing shot reveals ROCK in the scene.",
+      "emotion": "mysterious",
+      "intent": "establish",
+      "duration": 5.0,
+      "character": null,
+      "camera": {
+        "name": "VCam_1",
+        "shot_type": "wide_shot",
+        "position": {
+          "x": -5.686945,
+          "y": 13.825413,
+          "z": 7.0
+        },
+        "rotation": {
+          "x": 60.0,
+          "y": 180.0,
+          "z": 0.0
+        },
+        "fov": 55.0,
+        "look_at": "ROCK",
+        "follow": null,
+        "movement": {
+          "type": "orbit",
+          "target": "ROCK",
+          "speed": 12.0,
+          "radius": 10.0
+        }
+      },
+      "transition": {
+        "type": "cut",
+        "duration": 0.0
+      }
+    },
+    {
+      "beat_id": 2,
+      "purpose": "Show the character entering the scene.",
+      "speaker": "UNCLE_BEN",
+      "dialogue": "",
+      "action": "UNCLE_BEN walks toward ROCK.",
+      "emotion": "focused",
+      "intent": "approach",
+      "duration": 5.0,
+      "character": {
+        "name": "UNCLE_BEN",
+        "animation": "Walk",
+        "start_position": {
+          "x": -5.686945,
+          "y": -0.174587,
+          "z": 12.0
+        },
+        "end_position": {
+          "x": -5.686945,
+          "y": -0.174587,
+          "z": 4.0
+        },
+        "facing_y": 180.0,
+        "move_speed": 1.0
+      },
+      "camera": {
+        "name": "VCam_2",
+        "shot_type": "medium_shot",
+        "position": {
+          "x": -5.686945,
+          "y": 1.625413,
+          "z": 8.0
+        },
+        "rotation": {
+          "x": 8.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "fov": 50.0,
+        "look_at": "UNCLE_BEN",
+        "follow": "UNCLE_BEN",
+        "movement": {
+          "type": "follow",
+          "target": "UNCLE_BEN",
+          "speed": 1.0,
+          "radius": null
+        }
+      },
+      "transition": {
+        "type": "cut",
+        "duration": 0.0
+      }
+    },
+    {
+      "beat_id": 3,
+      "purpose": "Build anticipation as the character gets closer.",
+      "speaker": "UNCLE_BEN",
+      "dialogue": "",
+      "action": "UNCLE_BEN slows down as the strange ROCK becomes visible.",
+      "emotion": "concerned",
+      "intent": "build_tension",
+      "duration": 5.0,
+      "character": {
+        "name": "UNCLE_BEN",
+        "animation": "Walk",
+        "start_position": {
+          "x": -5.686945,
+          "y": -0.174587,
+          "z": 4.0
+        },
+        "end_position": {
+          "x": -5.686945,
+          "y": -0.174587,
+          "z": -1.0
+        },
+        "facing_y": 180.0,
+        "move_speed": 0.8
+      },
+      "camera": {
+        "name": "VCam_3",
+        "shot_type": "wide_shot",
+        "position": {
+          "x": -1.6869449999999997,
+          "y": 2.0254130000000004,
+          "z": 4.5
+        },
+        "rotation": {
+          "x": 10.0,
+          "y": 210.0,
+          "z": 0.0
+        },
+        "fov": 60.0,
+        "look_at": "UNCLE_BEN",
+        "follow": null,
+        "movement": {
+          "type": "static",
+          "target": "UNCLE_BEN",
+          "speed": null,
+          "radius": null
+        }
+      },
+      "transition": {
+        "type": "cut",
+        "duration": 0.0
+      }
+    },
+    {
+      "beat_id": 4,
+      "purpose": "Reveal the object from the character perspective.",
+      "speaker": "UNCLE_BEN",
+      "dialogue": "",
+      "action": "Over-the-shoulder reveal of ROCK in front of UNCLE_BEN.",
+      "emotion": "mysterious",
+      "intent": "reveal",
+      "duration": 4.0,
+      "character": {
+        "name": "UNCLE_BEN",
+        "animation": "Idle",
+        "start_position": {
+          "x": -5.686945,
+          "y": -0.174587,
+          "z": -1.0
+        },
+        "end_position": null,
+        "facing_y": 180.0,
+        "move_speed": null
+      },
+      "camera": {
+        "name": "VCam_4",
+        "shot_type": "over_the_shoulder",
+        "position": {
+          "x": -5.686945,
+          "y": 1.625413,
+          "z": 0.19999999999999996
+        },
+        "rotation": {
+          "x": 8.0,
+          "y": 180.0,
+          "z": 0.0
+        },
+        "fov": 52.0,
+        "look_at": "ROCK",
+        "follow": "UNCLE_BEN",
+        "movement": {
+          "type": "pan",
+          "target": "ROCK",
+          "speed": 8.0,
+          "radius": 1.5
+        }
+      },
+      "transition": {
+        "type": "cut",
+        "duration": 0.0
+      }
+    },
+    {
+      "beat_id": 5,
+      "purpose": "Show emotional reaction and inner thought.",
+      "speaker": "UNCLE_BEN",
+      "dialogue": "Strange, where did this rock come from?",
+      "action": "Close-up on UNCLE_BEN's face as he reacts with confusion.",
+      "emotion": "confused",
+      "intent": "question",
+      "duration": 5.0,
+      "character": {
+        "name": "UNCLE_BEN",
+        "animation": "Reaction",
+        "start_position": {
+          "x": -5.686945,
+          "y": -0.174587,
+          "z": -1.0
+        },
+        "end_position": null,
+        "facing_y": 180.0,
+        "move_speed": null
+      },
+      "camera": {
+        "name": "VCam_5",
+        "shot_type": "close_up",
+        "position": {
+          "x": -5.686945,
+          "y": 1.525413,
+          "z": -3.0
+        },
+        "rotation": {
+          "x": 5.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "fov": 35.0,
+        "look_at": "UNCLE_BEN",
+        "follow": null,
+        "movement": {
+          "type": "dolly_in",
+          "target": "UNCLE_BEN",
+          "speed": 0.15,
+          "radius": null
+        }
+      },
+      "transition": {
+        "type": "fade",
+        "duration": 1.0
+      }
+    }
+  ]
+}
