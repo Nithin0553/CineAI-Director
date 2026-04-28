@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-import json
-from typing import Any, Dict, List
+from dataclasses import dataclass
+from math import atan2, degrees, sqrt
+from typing import Any, Dict, List, Optional
 
 from schema import (
     Beat,
@@ -15,201 +16,72 @@ from schema import (
 )
 
 
-class LocalDirectorBrain:
-    """
-    First prototype of the AI Director Brain.
+@dataclass
+class StoryAnalysis:
+    main_character: str
+    main_object: str
+    location: str
+    dialogue: str
+    emotion_arc: List[str]
+    story_intent: str
 
-    This version is intentionally local and deterministic so the project works
-    without API keys. Later, this class can be replaced with an LLM-backed brain.
-    """
 
-    def generate(self, scene_context: Dict[str, Any], story: str) -> UniversalBeatScript:
-        characters: List[str] = scene_context.get("characters", [])
-        objects: List[str] = scene_context.get("objects", [])
-        locations: List[str] = scene_context.get("locations", [])
+@dataclass
+class BeatPlan:
+    beat_id: int
+    purpose: str
+    action: str
+    emotion: str
+    intent: str
+    speaker: str
+    dialogue: str
+    shot_type: str
+    camera_movement: str
+    duration: float
+    transition: str
+
+
+@dataclass
+class BlockingPlan:
+    character_name: str
+    animation: str
+    start_position: Optional[Vector3]
+    end_position: Optional[Vector3]
+    facing_y: Optional[float]
+    move_speed: Optional[float]
+
+
+@dataclass
+class CameraPlan:
+    name: str
+    shot_type: str
+    position: Vector3
+    rotation: Rotation
+    fov: float
+    look_at: Optional[str]
+    follow: Optional[str]
+    movement: CameraMovementInstruction
+
+
+class StoryUnderstandingAgent:
+    def analyze(self, scene_context: Dict[str, Any], story: str) -> StoryAnalysis:
+        characters = scene_context.get("characters", [])
+        objects = scene_context.get("objects", [])
+        locations = scene_context.get("locations", [])
 
         main_character = characters[0] if characters else "CHARACTER"
         main_object = objects[0] if objects else "OBJECT"
+        location = locations[0] if locations else "LOCATION"
 
-        start = scene_context.get("default_character_start", {"x": -5.0, "y": 0.0, "z": 8.0})
-        middle = scene_context.get("default_character_middle", {"x": -5.0, "y": 0.0, "z": 3.5})
-        end = scene_context.get("default_character_end", {"x": -5.0, "y": 0.0, "z": -1.0})
-        object_pos = scene_context.get("default_object_position", {"x": -5.0, "y": 0.0, "z": -3.0})
+        dialogue = self._extract_dialogue_or_default(story)
 
-        beats = [
-            Beat(
-                beat_id=1,
-                purpose="Establish the mysterious object and location.",
-                speaker="",
-                dialogue="",
-                action=f"Aerial establishing shot reveals {main_object} in the scene.",
-                emotion="mysterious",
-                intent="establish",
-                duration=5.0,
-                character=None,
-                camera=CameraInstruction(
-                    name="VCam_1",
-                    shot_type="wide_shot",
-                    position=Vector3(object_pos["x"], object_pos["y"] + 14.0, object_pos["z"] + 10.0),
-                    rotation=Rotation(60.0, 180.0, 0.0),
-                    fov=55.0,
-                    look_at=main_object,
-                    follow=None,
-                    movement=CameraMovementInstruction(
-                        type="orbit",
-                        target=main_object,
-                        speed=12.0,
-                        radius=10.0,
-                    ),
-                ),
-                transition=TransitionInstruction(type="cut", duration=0.0),
-            ),
-            Beat(
-                beat_id=2,
-                purpose="Show the character entering the scene.",
-                speaker=main_character,
-                dialogue="",
-                action=f"{main_character} walks toward {main_object}.",
-                emotion="focused",
-                intent="approach",
-                duration=5.0,
-                character=CharacterInstruction(
-                    name=main_character,
-                    animation="Walk",
-                    start_position=Vector3(start["x"], start["y"], start["z"]),
-                    end_position=Vector3(middle["x"], middle["y"], middle["z"]),
-                    facing_y=180.0,
-                    move_speed=1.0,
-                ),
-                camera=CameraInstruction(
-                    name="VCam_2",
-                    shot_type="medium_shot",
-                    position=Vector3(start["x"], start["y"] + 1.8, start["z"] - 4.0),
-                    rotation=Rotation(8.0, 0.0, 0.0),
-                    fov=50.0,
-                    look_at=main_character,
-                    follow=main_character,
-                    movement=CameraMovementInstruction(
-                        type="follow",
-                        target=main_character,
-                        speed=1.0,
-                        radius=None,
-                    ),
-                ),
-                transition=TransitionInstruction(type="cut", duration=0.0),
-            ),
-            Beat(
-                beat_id=3,
-                purpose="Build anticipation as the character gets closer.",
-                speaker=main_character,
-                dialogue="",
-                action=f"{main_character} slows down as the strange {main_object} becomes visible.",
-                emotion="concerned",
-                intent="build_tension",
-                duration=5.0,
-                character=CharacterInstruction(
-                    name=main_character,
-                    animation="Walk",
-                    start_position=Vector3(middle["x"], middle["y"], middle["z"]),
-                    end_position=Vector3(end["x"], end["y"], end["z"]),
-                    facing_y=180.0,
-                    move_speed=0.8,
-                ),
-                camera=CameraInstruction(
-                    name="VCam_3",
-                    shot_type="wide_shot",
-                    position=Vector3(end["x"] + 4.0, end["y"] + 2.2, end["z"] + 5.5),
-                    rotation=Rotation(10.0, 210.0, 0.0),
-                    fov=60.0,
-                    look_at=main_character,
-                    follow=None,
-                    movement=CameraMovementInstruction(
-                        type="static",
-                        target=main_character,
-                        speed=None,
-                        radius=None,
-                    ),
-                ),
-                transition=TransitionInstruction(type="cut", duration=0.0),
-            ),
-            Beat(
-                beat_id=4,
-                purpose="Reveal the object from the character perspective.",
-                speaker=main_character,
-                dialogue="",
-                action=f"Over-the-shoulder reveal of {main_object} in front of {main_character}.",
-                emotion="mysterious",
-                intent="reveal",
-                duration=4.0,
-                character=CharacterInstruction(
-                    name=main_character,
-                    animation="Idle",
-                    start_position=Vector3(end["x"], end["y"], end["z"]),
-                    end_position=None,
-                    facing_y=180.0,
-                    move_speed=None,
-                ),
-                camera=CameraInstruction(
-                    name="VCam_4",
-                    shot_type="over_the_shoulder",
-                    position=Vector3(end["x"], end["y"] + 1.8, end["z"] + 1.2),
-                    rotation=Rotation(8.0, 180.0, 0.0),
-                    fov=52.0,
-                    look_at=main_object,
-                    follow=main_character,
-                    movement=CameraMovementInstruction(
-                        type="pan",
-                        target=main_object,
-                        speed=8.0,
-                        radius=1.5,
-                    ),
-                ),
-                transition=TransitionInstruction(type="cut", duration=0.0),
-            ),
-            Beat(
-                beat_id=5,
-                purpose="Show emotional reaction and inner thought.",
-                speaker=main_character,
-                dialogue=self._extract_dialogue_or_default(story),
-                action=f"Close-up on {main_character}'s face as he reacts with confusion.",
-                emotion="confused",
-                intent="question",
-                duration=5.0,
-                character=CharacterInstruction(
-                    name=main_character,
-                    animation="Reaction",
-                    start_position=Vector3(end["x"], end["y"], end["z"]),
-                    end_position=None,
-                    facing_y=180.0,
-                    move_speed=None,
-                ),
-                camera=CameraInstruction(
-                    name="VCam_5",
-                    shot_type="close_up",
-                    position=Vector3(end["x"], end["y"] + 1.7, end["z"] - 2.0),
-                    rotation=Rotation(5.0, 0.0, 0.0),
-                    fov=35.0,
-                    look_at=main_character,
-                    follow=None,
-                    movement=CameraMovementInstruction(
-                        type="dolly_in",
-                        target=main_character,
-                        speed=0.15,
-                        radius=None,
-                    ),
-                ),
-                transition=TransitionInstruction(type="fade", duration=1.0),
-            ),
-        ]
-
-        return UniversalBeatScript(
-            project="CineAI Director",
-            scene_id="scene_001",
-            scene_title="Generated Cutscene",
-            characters=characters,
-            objects=objects,
-            locations=locations,
-            beats=beats,
+        return StoryAnalysis(
+            main_character=main_character,
+            main_object=main_object,
+            location=location,
+            dialogue=dialogue,
+            emotion_arc=["mysterious", "focused", "concerned", "mysterious", "confused"],
+            story_intent="approach_reveal_reaction",
         )
 
     @staticmethod
@@ -227,9 +99,447 @@ class LocalDirectorBrain:
         return "Strange, where did this come from?"
 
 
+class DirectorAgent:
+    def create_beat_plan(self, analysis: StoryAnalysis) -> List[BeatPlan]:
+        c = analysis.main_character
+        o = analysis.main_object
+
+        return [
+            BeatPlan(
+                beat_id=1,
+                purpose="Establish the location and mysterious object.",
+                action=f"Aerial establishing shot reveals {o} in the scene.",
+                emotion="mysterious",
+                intent="establish",
+                speaker="",
+                dialogue="",
+                shot_type="wide_shot",
+                camera_movement="orbit",
+                duration=5.0,
+                transition="cut",
+            ),
+            BeatPlan(
+                beat_id=2,
+                purpose="Introduce the character entering the scene.",
+                action=f"{c} walks toward {o}.",
+                emotion="focused",
+                intent="approach",
+                speaker=c,
+                dialogue="",
+                shot_type="medium_shot",
+                camera_movement="follow",
+                duration=5.0,
+                transition="cut",
+            ),
+            BeatPlan(
+                beat_id=3,
+                purpose="Build anticipation as the character gets closer.",
+                action=f"{c} slows down as the strange {o} becomes visible.",
+                emotion="concerned",
+                intent="build_tension",
+                speaker=c,
+                dialogue="",
+                shot_type="wide_shot",
+                camera_movement="static",
+                duration=5.0,
+                transition="cut",
+            ),
+            BeatPlan(
+                beat_id=4,
+                purpose="Reveal the object from the character's point of view.",
+                action=f"Over-the-shoulder reveal of {o} in front of {c}.",
+                emotion="mysterious",
+                intent="reveal",
+                speaker=c,
+                dialogue="",
+                shot_type="over_the_shoulder",
+                camera_movement="pan",
+                duration=4.0,
+                transition="cut",
+            ),
+            BeatPlan(
+                beat_id=5,
+                purpose="Show emotional reaction and inner thought.",
+                action=f"Close-up on {c}'s face as he reacts with confusion.",
+                emotion="confused",
+                intent="question",
+                speaker=c,
+                dialogue=analysis.dialogue,
+                shot_type="close_up",
+                camera_movement="dolly_in",
+                duration=5.0,
+                transition="fade",
+            ),
+        ]
+
+
+class BlockingAgent:
+    def create_blocking(
+            self,
+            beat_plan: BeatPlan,
+            analysis: StoryAnalysis,
+            scene_context: Dict[str, Any],
+    ) -> Optional[BlockingPlan]:
+        c = analysis.main_character
+
+        start = self._vec(scene_context.get("default_character_start", {"x": -5.0, "y": 0.0, "z": 12.0}))
+        middle = self._vec(scene_context.get("default_character_middle", {"x": -5.0, "y": 0.0, "z": 4.0}))
+        end = self._vec(scene_context.get("default_character_end", {"x": -5.0, "y": 0.0, "z": -1.0}))
+
+        if beat_plan.beat_id == 1:
+            return None
+
+        if beat_plan.beat_id == 2:
+            return BlockingPlan(
+                character_name=c,
+                animation="Walk",
+                start_position=start,
+                end_position=middle,
+                facing_y=180.0,
+                move_speed=1.0,
+            )
+
+        if beat_plan.beat_id == 3:
+            return BlockingPlan(
+                character_name=c,
+                animation="Walk",
+                start_position=middle,
+                end_position=end,
+                facing_y=180.0,
+                move_speed=0.8,
+            )
+
+        if beat_plan.beat_id == 4:
+            return BlockingPlan(
+                character_name=c,
+                animation="Idle",
+                start_position=end,
+                end_position=None,
+                facing_y=180.0,
+                move_speed=None,
+            )
+
+        if beat_plan.beat_id == 5:
+            return BlockingPlan(
+                character_name=c,
+                animation="Reaction",
+                start_position=end,
+                end_position=None,
+                facing_y=180.0,
+                move_speed=None,
+            )
+
+        return None
+
+    @staticmethod
+    def _vec(data: Dict[str, Any]) -> Vector3:
+        return Vector3(float(data["x"]), float(data["y"]), float(data["z"]))
+
+
+class CinematographerAgent:
+    """
+    Camera-Artist-inspired cinematic planning agent.
+
+    It does not render images. It creates Unity-executable camera language:
+    position, rotation, FOV, LookAt, Follow, and movement.
+    """
+
+    def create_camera_plan(
+            self,
+            beat_plan: BeatPlan,
+            blocking: Optional[BlockingPlan],
+            analysis: StoryAnalysis,
+            scene_context: Dict[str, Any],
+    ) -> CameraPlan:
+        c = analysis.main_character
+        o = analysis.main_object
+
+        object_pos = self._vec(scene_context.get("default_object_position", {"x": -5.0, "y": 0.0, "z": -3.0}))
+
+        if blocking and blocking.start_position:
+            char_pos = blocking.start_position
+        else:
+            char_pos = self._vec(scene_context.get("default_character_end", {"x": -5.0, "y": 0.0, "z": -1.0}))
+
+        if blocking and blocking.end_position:
+            char_end = blocking.end_position
+        else:
+            char_end = char_pos
+
+        if beat_plan.beat_id == 1:
+            cam_pos = Vector3(object_pos.x + 0.0, object_pos.y + 12.0, object_pos.z + 10.0)
+            rotation = self._look_at_rotation(cam_pos, object_pos)
+
+            return CameraPlan(
+                name="VCam_1",
+                shot_type=beat_plan.shot_type,
+                position=cam_pos,
+                rotation=rotation,
+                fov=55.0,
+                look_at=o,
+                follow=None,
+                movement=CameraMovementInstruction(
+                    type="orbit",
+                    target=o,
+                    speed=10.0,
+                    radius=10.0,
+                ),
+            )
+
+        if beat_plan.beat_id == 2:
+            # Frontal-follow walking shot. Camera stays in front of character path.
+            cam_pos = Vector3(char_pos.x, char_pos.y + 1.65, char_pos.z - 4.0)
+            look_point = Vector3(char_pos.x, char_pos.y + 1.45, char_pos.z)
+            rotation = self._look_at_rotation(cam_pos, look_point)
+
+            return CameraPlan(
+                name="VCam_2",
+                shot_type=beat_plan.shot_type,
+                position=cam_pos,
+                rotation=rotation,
+                fov=48.0,
+                look_at=c,
+                follow=None,
+                movement=CameraMovementInstruction(
+                    type="static",
+                    target=c,
+                    speed=None,
+                    radius=None,
+                ),
+            )
+
+        if beat_plan.beat_id == 3:
+            # Wide diagonal composition: character and rock should both be visible.
+            midpoint = self._midpoint(char_end, object_pos)
+            cam_pos = Vector3(midpoint.x + 5.5, midpoint.y + 2.4, midpoint.z + 5.5)
+            look_point = Vector3(midpoint.x, midpoint.y + 1.0, midpoint.z)
+            rotation = self._look_at_rotation(cam_pos, look_point)
+
+            return CameraPlan(
+                name="VCam_3",
+                shot_type=beat_plan.shot_type,
+                position=cam_pos,
+                rotation=rotation,
+                fov=62.0,
+                look_at=c,
+                follow=None,
+                movement=CameraMovementInstruction(
+                    type="static",
+                    target=c,
+                    speed=None,
+                    radius=None,
+                ),
+            )
+
+        if beat_plan.beat_id == 4:
+            # Over-the-shoulder reveal. Camera behind character, looking at rock.
+            cam_pos = Vector3(char_pos.x + 0.45, char_pos.y + 1.65, char_pos.z + 1.4)
+            look_point = Vector3(object_pos.x, object_pos.y + 1.0, object_pos.z)
+            rotation = self._look_at_rotation(cam_pos, look_point)
+
+            return CameraPlan(
+                name="VCam_4",
+                shot_type=beat_plan.shot_type,
+                position=cam_pos,
+                rotation=rotation,
+                fov=52.0,
+                look_at=o,
+                follow=None,
+                movement=CameraMovementInstruction(
+                    type="pan",
+                    target=o,
+                    speed=6.0,
+                    radius=1.5,
+                ),
+            )
+
+        if beat_plan.beat_id == 5:
+            # Face close-up. Character faces 180, so camera should be in front along negative Z.
+            cam_pos = Vector3(char_pos.x, char_pos.y + 1.55, char_pos.z - 1.7)
+            look_point = Vector3(char_pos.x, char_pos.y + 1.55, char_pos.z)
+            rotation = self._look_at_rotation(cam_pos, look_point)
+
+            return CameraPlan(
+                name="VCam_5",
+                shot_type=beat_plan.shot_type,
+                position=cam_pos,
+                rotation=rotation,
+                fov=34.0,
+                look_at=c,
+                follow=None,
+                movement=CameraMovementInstruction(
+                    type="dolly_in",
+                    target=c,
+                    speed=0.08,
+                    radius=None,
+                ),
+            )
+
+        cam_pos = Vector3(char_pos.x, char_pos.y + 2.0, char_pos.z - 5.0)
+        rotation = self._look_at_rotation(cam_pos, char_pos)
+
+        return CameraPlan(
+            name=f"VCam_{beat_plan.beat_id}",
+            shot_type=beat_plan.shot_type,
+            position=cam_pos,
+            rotation=rotation,
+            fov=50.0,
+            look_at=c,
+            follow=None,
+            movement=CameraMovementInstruction(
+                type=beat_plan.camera_movement,
+                target=c,
+                speed=None,
+                radius=None,
+            ),
+        )
+
+    @staticmethod
+    def _vec(data: Dict[str, Any]) -> Vector3:
+        return Vector3(float(data["x"]), float(data["y"]), float(data["z"]))
+
+    @staticmethod
+    def _midpoint(a: Vector3, b: Vector3) -> Vector3:
+        return Vector3(
+            (a.x + b.x) / 2.0,
+            (a.y + b.y) / 2.0,
+            (a.z + b.z) / 2.0,
+            )
+
+    @staticmethod
+    def _look_at_rotation(camera_pos: Vector3, target_pos: Vector3) -> Rotation:
+        dx = target_pos.x - camera_pos.x
+        dy = target_pos.y - camera_pos.y
+        dz = target_pos.z - camera_pos.z
+
+        horizontal_distance = sqrt(dx * dx + dz * dz)
+
+        pitch = -degrees(atan2(dy, horizontal_distance))
+        yaw = degrees(atan2(dx, dz))
+
+        return Rotation(
+            x=round(pitch, 2),
+            y=round(yaw, 2),
+            z=0.0,
+        )
+
+
+class EditorAgent:
+    def refine(self, beat_plan: BeatPlan) -> TransitionInstruction:
+        if beat_plan.transition == "fade":
+            return TransitionInstruction(type="fade", duration=1.0)
+
+        return TransitionInstruction(type=beat_plan.transition, duration=0.0)
+
+
+class UnitySafetyValidatorAgent:
+    def validate_names(
+            self,
+            script: UniversalBeatScript,
+            scene_context: Dict[str, Any],
+    ) -> UniversalBeatScript:
+        allowed_characters = set(scene_context.get("characters", []))
+        allowed_objects = set(scene_context.get("objects", []))
+
+        for beat in script.beats:
+            if beat.character and beat.character.name not in allowed_characters:
+                raise ValueError(f"Invalid character name in beat {beat.beat_id}: {beat.character.name}")
+
+            if beat.speaker and beat.speaker not in allowed_characters:
+                raise ValueError(f"Invalid speaker name in beat {beat.beat_id}: {beat.speaker}")
+
+            if beat.camera.look_at:
+                if beat.camera.look_at not in allowed_characters and beat.camera.look_at not in allowed_objects:
+                    raise ValueError(f"Invalid look_at target in beat {beat.beat_id}: {beat.camera.look_at}")
+
+            if beat.camera.follow:
+                if beat.camera.follow not in allowed_characters and beat.camera.follow not in allowed_objects:
+                    raise ValueError(f"Invalid follow target in beat {beat.beat_id}: {beat.camera.follow}")
+
+        return script
+
+
+class MultiAgentDirectorBrain:
+    """
+    Camera-Artist-inspired multi-agent director brain for Unity.
+
+    This is still local/deterministic, but the logic is separated into agents
+    so it can later be replaced with real LLM calls agent by agent.
+    """
+
+    def __init__(self) -> None:
+        self.story_agent = StoryUnderstandingAgent()
+        self.director_agent = DirectorAgent()
+        self.blocking_agent = BlockingAgent()
+        self.cinematographer_agent = CinematographerAgent()
+        self.editor_agent = EditorAgent()
+        self.validator_agent = UnitySafetyValidatorAgent()
+
+    def generate(self, scene_context: Dict[str, Any], story: str) -> UniversalBeatScript:
+        analysis = self.story_agent.analyze(scene_context, story)
+        beat_plans = self.director_agent.create_beat_plan(analysis)
+
+        beats: List[Beat] = []
+
+        for plan in beat_plans:
+            blocking = self.blocking_agent.create_blocking(plan, analysis, scene_context)
+            camera = self.cinematographer_agent.create_camera_plan(plan, blocking, analysis, scene_context)
+            transition = self.editor_agent.refine(plan)
+
+            character_instruction = None
+
+            if blocking:
+                character_instruction = CharacterInstruction(
+                    name=blocking.character_name,
+                    animation=blocking.animation,
+                    start_position=blocking.start_position,
+                    end_position=blocking.end_position,
+                    facing_y=blocking.facing_y,
+                    move_speed=blocking.move_speed,
+                )
+
+            beat = Beat(
+                beat_id=plan.beat_id,
+                purpose=plan.purpose,
+                speaker=plan.speaker,
+                dialogue=plan.dialogue,
+                action=plan.action,
+                emotion=plan.emotion,
+                intent=plan.intent,
+                duration=plan.duration,
+                character=character_instruction,
+                camera=CameraInstruction(
+                    name=camera.name,
+                    shot_type=camera.shot_type,
+                    position=camera.position,
+                    rotation=camera.rotation,
+                    fov=camera.fov,
+                    look_at=camera.look_at,
+                    follow=camera.follow,
+                    movement=camera.movement,
+                ),
+                transition=transition,
+            )
+
+            beats.append(beat)
+
+        script = UniversalBeatScript(
+            project="CineAI Director",
+            scene_id="scene_001",
+            scene_title="Generated Cutscene",
+            characters=scene_context.get("characters", []),
+            objects=scene_context.get("objects", []),
+            locations=scene_context.get("locations", []),
+            beats=beats,
+        )
+
+        return self.validator_agent.validate_names(script, scene_context)
+
+
+# Keep old name so main.py does not need to change.
+class LocalDirectorBrain(MultiAgentDirectorBrain):
+    pass
+
+
 def universal_script_from_dict(data: Dict[str, Any]) -> UniversalBeatScript:
-    """
-    Placeholder for future LLM JSON → dataclass conversion.
-    For now, local generation directly creates dataclasses.
-    """
     raise NotImplementedError("LLM JSON parsing will be added in the next phase.")

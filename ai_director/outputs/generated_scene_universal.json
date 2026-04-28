@@ -14,7 +14,7 @@
   "beats": [
     {
       "beat_id": 1,
-      "purpose": "Establish the mysterious object and location.",
+      "purpose": "Establish the location and mysterious object.",
       "speaker": "",
       "dialogue": "",
       "action": "Aerial establishing shot reveals ROCK in the scene.",
@@ -27,11 +27,11 @@
         "shot_type": "wide_shot",
         "position": {
           "x": -5.686945,
-          "y": 13.825413,
+          "y": 11.825413,
           "z": 7.0
         },
         "rotation": {
-          "x": 60.0,
+          "x": 50.19,
           "y": 180.0,
           "z": 0.0
         },
@@ -41,7 +41,7 @@
         "movement": {
           "type": "orbit",
           "target": "ROCK",
-          "speed": 12.0,
+          "speed": 10.0,
           "radius": 10.0
         }
       },
@@ -52,7 +52,7 @@
     },
     {
       "beat_id": 2,
-      "purpose": "Show the character entering the scene.",
+      "purpose": "Introduce the character entering the scene.",
       "speaker": "UNCLE_BEN",
       "dialogue": "",
       "action": "UNCLE_BEN walks toward ROCK.",
@@ -80,21 +80,21 @@
         "shot_type": "medium_shot",
         "position": {
           "x": -5.686945,
-          "y": 1.625413,
+          "y": 1.4754129999999999,
           "z": 8.0
         },
         "rotation": {
-          "x": 8.0,
+          "x": 2.86,
           "y": 0.0,
           "z": 0.0
         },
-        "fov": 50.0,
+        "fov": 48.0,
         "look_at": "UNCLE_BEN",
-        "follow": "UNCLE_BEN",
+        "follow": null,
         "movement": {
-          "type": "follow",
+          "type": "static",
           "target": "UNCLE_BEN",
-          "speed": 1.0,
+          "speed": null,
           "radius": null
         }
       },
@@ -132,16 +132,16 @@
         "name": "VCam_3",
         "shot_type": "wide_shot",
         "position": {
-          "x": -1.6869449999999997,
-          "y": 2.0254130000000004,
-          "z": 4.5
+          "x": -0.1869449999999997,
+          "y": 2.225413,
+          "z": 3.5
         },
         "rotation": {
-          "x": 10.0,
-          "y": 210.0,
+          "x": 10.2,
+          "y": -135.0,
           "z": 0.0
         },
-        "fov": 60.0,
+        "fov": 62.0,
         "look_at": "UNCLE_BEN",
         "follow": null,
         "movement": {
@@ -158,7 +158,7 @@
     },
     {
       "beat_id": 4,
-      "purpose": "Reveal the object from the character perspective.",
+      "purpose": "Reveal the object from the character's point of view.",
       "speaker": "UNCLE_BEN",
       "dialogue": "",
       "action": "Over-the-shoulder reveal of ROCK in front of UNCLE_BEN.",
@@ -181,22 +181,22 @@
         "name": "VCam_4",
         "shot_type": "over_the_shoulder",
         "position": {
-          "x": -5.686945,
-          "y": 1.625413,
-          "z": 0.19999999999999996
+          "x": -5.2369449999999995,
+          "y": 1.4754129999999999,
+          "z": 0.3999999999999999
         },
         "rotation": {
-          "x": 8.0,
-          "y": 180.0,
+          "x": 10.73,
+          "y": -172.46,
           "z": 0.0
         },
         "fov": 52.0,
         "look_at": "ROCK",
-        "follow": "UNCLE_BEN",
+        "follow": null,
         "movement": {
           "type": "pan",
           "target": "ROCK",
-          "speed": 8.0,
+          "speed": 6.0,
           "radius": 1.5
         }
       },
@@ -231,21 +231,21 @@
         "shot_type": "close_up",
         "position": {
           "x": -5.686945,
-          "y": 1.525413,
-          "z": -3.0
+          "y": 1.375413,
+          "z": -2.7
         },
         "rotation": {
-          "x": 5.0,
+          "x": -0.0,
           "y": 0.0,
           "z": 0.0
         },
-        "fov": 35.0,
+        "fov": 34.0,
         "look_at": "UNCLE_BEN",
         "follow": null,
         "movement": {
           "type": "dolly_in",
           "target": "UNCLE_BEN",
-          "speed": 0.15,
+          "speed": 0.08,
           "radius": null
         }
       },
