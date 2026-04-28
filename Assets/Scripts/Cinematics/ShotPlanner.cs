@@ -48,7 +48,6 @@ public class ShotPlanner : MonoBehaviour
         shot.dollySpeedOverride = beat.dolly_speed_override;
         shot.panSpeedOverride = beat.pan_speed_override;
 
-        // TIER 1 — EXACT WORLD POSITION FROM AI
         if (beat.use_exact_camera_position)
         {
             shot.useExactPosition = true;
@@ -65,11 +64,10 @@ public class ShotPlanner : MonoBehaviour
 
             shot.fov = beat.fov_override > 0 ? beat.fov_override : 50f;
 
-            Debug.Log($"🎥 Beat {beat.beat_id} → AI EXACT POSITION {shot.exactPosition}");
+            Debug.Log($"🎥 Beat {beat.beat_id} → AI EXACT WORLD POSITION {shot.exactPosition}");
             return shot;
         }
 
-        // TIER 2 — EXACT TARGET-LOCAL OFFSET
         if (beat.use_exact_camera_offset)
         {
             shot.offset = new Vector3(
@@ -80,11 +78,16 @@ public class ShotPlanner : MonoBehaviour
 
             shot.fov = beat.fov_override > 0 ? beat.fov_override : 50f;
 
-            Debug.Log($"🎥 Beat {beat.beat_id} → EXACT OFFSET {shot.offset}");
+            if (shot.followTarget == null && speaker != null)
+                shot.followTarget = speaker;
+
+            if (shot.lookTarget == null)
+                shot.lookTarget = focus != null ? focus : speaker;
+
+            Debug.Log($"🎥 Beat {beat.beat_id} → AI TARGET-RELATIVE OFFSET {shot.offset}");
             return shot;
         }
 
-        // TIER 3 — OLD INFERRED DEFAULTS
         float offsetX = 0f;
         float offsetY = 0f;
         float offsetZ = 0f;

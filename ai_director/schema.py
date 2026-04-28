@@ -105,11 +105,20 @@ class CameraMovementInstruction:
 class CameraInstruction:
     name: str
     shot_type: str
+
+    # These are kept in the universal schema for future world-space support.
+    # In the current Unity export, character/object shots use target-relative offsets.
     position: Vector3
     rotation: Rotation
+
     fov: float
     look_at: Optional[str] = None
     follow: Optional[str] = None
+
+    # Target-relative camera offset.
+    # This is the most universal form for Unity because it works across scenes.
+    offset: Optional[Vector3] = None
+
     movement: CameraMovementInstruction = field(default_factory=CameraMovementInstruction)
 
     def to_dict(self) -> Dict[str, Any]:
@@ -121,6 +130,7 @@ class CameraInstruction:
             "fov": self.fov,
             "look_at": self.look_at,
             "follow": self.follow,
+            "offset": self.offset.to_dict() if self.offset else None,
             "movement": self.movement.to_dict(),
         }
 
@@ -188,14 +198,13 @@ class UniversalBeatScript:
 
 def unity_legacy_beat_script(universal_script: UniversalBeatScript) -> Dict[str, Any]:
     """
-    Converts Universal Beat Script into the current Unity Beat.cs format.
+    Converts Universal Beat Script into the current Unity Beat.cs-compatible format.
 
-    This version also includes extra interpreter fields:
-    - camera rotation
-    - camera follow target
-    - camera look-at target
-    - animation name
-    - character move speed
+    Important architecture:
+    - Environment/aerial shots may use exact world camera position.
+    - Character/object shots use exact target-relative camera offsets.
+    - LLM/multi-agent brain decides the offset, FOV, movement, target, animation, and timing.
+    - Unity only resolves targets and applies those values.
     """
 
     legacy_beats: List[Dict[str, Any]] = []
@@ -207,6 +216,13 @@ def unity_legacy_beat_script(universal_script: UniversalBeatScript) -> Dict[str,
 
         speaker_name = char.name if char else beat.speaker
         focus_target = cam.look_at or cam.follow or (char.name if char else "")
+
+        is_environment_or_aerial = char is None and bool(cam.look_at)
+
+        offset = cam.offset if cam.offset else Vector3(0.0, 1.7, -4.0)
+
+        use_exact_position = is_environment_or_aerial
+        use_exact_offset = not is_environment_or_aerial
 
         legacy: Dict[str, Any] = {
             "scene_id": 1,
@@ -227,12 +243,15 @@ def unity_legacy_beat_script(universal_script: UniversalBeatScript) -> Dict[str,
             "duration": beat.duration,
             "transition": beat.transition.type,
 
-            "use_exact_camera_position": True,
+            # Only aerial/environment shots use world position.
+            "use_exact_camera_position": use_exact_position,
             "camera_position_x": cam.position.x,
             "camera_position_y": cam.position.y,
             "camera_position_z": cam.position.z,
 
-            "use_exact_camera_rotation": True,
+            # Disable exact rotation for target-relative shots.
+            # Let Unity/Cinemachine aim at the resolved target.
+            "use_exact_camera_rotation": use_exact_position,
             "camera_rotation_x": cam.rotation.x,
             "camera_rotation_y": cam.rotation.y,
             "camera_rotation_z": cam.rotation.z,
@@ -240,10 +259,11 @@ def unity_legacy_beat_script(universal_script: UniversalBeatScript) -> Dict[str,
             "camera_follow_target": cam.follow or "",
             "camera_look_at_target": cam.look_at or focus_target,
 
-            "use_exact_camera_offset": False,
-            "camera_offset_x": 0.0,
-            "camera_offset_y": 0.0,
-            "camera_offset_z": 0.0,
+            # Main universal camera control for character/object shots.
+            "use_exact_camera_offset": use_exact_offset,
+            "camera_offset_x": offset.x,
+            "camera_offset_y": offset.y,
+            "camera_offset_z": offset.z,
 
             "fov_override": cam.fov,
 

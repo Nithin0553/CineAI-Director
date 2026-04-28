@@ -60,6 +60,7 @@ class CameraPlan:
     fov: float
     look_at: Optional[str]
     follow: Optional[str]
+    offset: Optional[Vector3]
     movement: CameraMovementInstruction
 
 
@@ -120,33 +121,33 @@ class DirectorAgent:
             ),
             BeatPlan(
                 beat_id=2,
-                purpose="Introduce the character entering the scene.",
-                action=f"{c} walks toward {o}.",
+                purpose="Show the character entering through movement detail.",
+                action=f"Low close shot follows {c}'s feet as he walks toward {o}.",
                 emotion="focused",
                 intent="approach",
                 speaker=c,
                 dialogue="",
-                shot_type="medium_shot",
+                shot_type="close_up",
                 camera_movement="follow",
                 duration=5.0,
                 transition="cut",
             ),
             BeatPlan(
                 beat_id=3,
-                purpose="Build anticipation as the character gets closer.",
-                action=f"{c} slows down as the strange {o} becomes visible.",
+                purpose="Show the character approaching the mysterious object.",
+                action=f"{c} walks toward the camera and slows near {o}.",
                 emotion="concerned",
-                intent="build_tension",
+                intent="approach",
                 speaker=c,
                 dialogue="",
-                shot_type="wide_shot",
+                shot_type="medium_shot",
                 camera_movement="static",
-                duration=5.0,
+                duration=6.0,
                 transition="cut",
             ),
             BeatPlan(
                 beat_id=4,
-                purpose="Reveal the object from the character's point of view.",
+                purpose="Reveal the object from behind the character.",
                 action=f"Over-the-shoulder reveal of {o} in front of {c}.",
                 emotion="mysterious",
                 intent="reveal",
@@ -154,7 +155,7 @@ class DirectorAgent:
                 dialogue="",
                 shot_type="over_the_shoulder",
                 camera_movement="pan",
-                duration=4.0,
+                duration=5.0,
                 transition="cut",
             ),
             BeatPlan(
@@ -238,10 +239,16 @@ class BlockingAgent:
 
 class CinematographerAgent:
     """
-    Camera-Artist-inspired cinematic planning agent.
+    Camera Artist-inspired cinematic planning agent.
 
-    It does not render images. It creates Unity-executable camera language:
-    position, rotation, FOV, LookAt, Follow, and movement.
+    This agent decides exact target-relative cinematic values:
+    - offset from subject
+    - FOV
+    - camera movement
+    - LookAt target
+    - Follow target
+
+    Unity applies these values relative to real scene objects.
     """
 
     def create_camera_plan(
@@ -256,73 +263,55 @@ class CinematographerAgent:
 
         object_pos = self._vec(scene_context.get("default_object_position", {"x": -5.0, "y": 0.0, "z": -3.0}))
 
-        if blocking and blocking.start_position:
-            char_pos = blocking.start_position
-        else:
-            char_pos = self._vec(scene_context.get("default_character_end", {"x": -5.0, "y": 0.0, "z": -1.0}))
-
-        if blocking and blocking.end_position:
-            char_end = blocking.end_position
-        else:
-            char_end = char_pos
-
         if beat_plan.beat_id == 1:
-            cam_pos = Vector3(object_pos.x + 0.0, object_pos.y + 12.0, object_pos.z + 10.0)
+            cam_pos = Vector3(object_pos.x, object_pos.y + 12.0, object_pos.z + 10.0)
             rotation = self._look_at_rotation(cam_pos, object_pos)
 
             return CameraPlan(
                 name="VCam_1",
-                shot_type=beat_plan.shot_type,
+                shot_type="wide_shot",
                 position=cam_pos,
                 rotation=rotation,
-                fov=55.0,
+                fov=50.0,
                 look_at=o,
                 follow=None,
+                offset=None,
                 movement=CameraMovementInstruction(
                     type="orbit",
                     target=o,
-                    speed=10.0,
+                    speed=15.0,
                     radius=10.0,
                 ),
             )
 
         if beat_plan.beat_id == 2:
-            # Frontal-follow walking shot. Camera stays in front of character path.
-            cam_pos = Vector3(char_pos.x, char_pos.y + 1.65, char_pos.z - 4.0)
-            look_point = Vector3(char_pos.x, char_pos.y + 1.45, char_pos.z)
-            rotation = self._look_at_rotation(cam_pos, look_point)
-
             return CameraPlan(
                 name="VCam_2",
-                shot_type=beat_plan.shot_type,
-                position=cam_pos,
-                rotation=rotation,
-                fov=48.0,
-                look_at=c,
-                follow=None,
+                shot_type="close_up",
+                position=Vector3(0.0, 0.0, 0.0),
+                rotation=Rotation(0.0, 0.0, 0.0),
+                fov=42.0,
+                look_at=f"{c}_FEET",
+                follow=c,
+                offset=Vector3(0.15, 0.28, -1.45),
                 movement=CameraMovementInstruction(
-                    type="static",
+                    type="follow",
                     target=c,
-                    speed=None,
+                    speed=1.0,
                     radius=None,
                 ),
             )
 
         if beat_plan.beat_id == 3:
-            # Wide diagonal composition: character and rock should both be visible.
-            midpoint = self._midpoint(char_end, object_pos)
-            cam_pos = Vector3(midpoint.x + 5.5, midpoint.y + 2.4, midpoint.z + 5.5)
-            look_point = Vector3(midpoint.x, midpoint.y + 1.0, midpoint.z)
-            rotation = self._look_at_rotation(cam_pos, look_point)
-
             return CameraPlan(
                 name="VCam_3",
-                shot_type=beat_plan.shot_type,
-                position=cam_pos,
-                rotation=rotation,
-                fov=62.0,
+                shot_type="medium_shot",
+                position=Vector3(0.0, 0.0, 0.0),
+                rotation=Rotation(0.0, 0.0, 0.0),
+                fov=58.0,
                 look_at=c,
-                follow=None,
+                follow=c,
+                offset=Vector3(-0.35, 1.85, 7.0),
                 movement=CameraMovementInstruction(
                     type="static",
                     target=c,
@@ -332,60 +321,50 @@ class CinematographerAgent:
             )
 
         if beat_plan.beat_id == 4:
-            # Over-the-shoulder reveal. Camera behind character, looking at rock.
-            cam_pos = Vector3(char_pos.x + 0.45, char_pos.y + 1.65, char_pos.z + 1.4)
-            look_point = Vector3(object_pos.x, object_pos.y + 1.0, object_pos.z)
-            rotation = self._look_at_rotation(cam_pos, look_point)
-
             return CameraPlan(
                 name="VCam_4",
-                shot_type=beat_plan.shot_type,
-                position=cam_pos,
-                rotation=rotation,
-                fov=52.0,
+                shot_type="over_the_shoulder",
+                position=Vector3(0.0, 0.0, 0.0),
+                rotation=Rotation(0.0, 0.0, 0.0),
+                fov=55.0,
                 look_at=o,
-                follow=None,
+                follow=c,
+                offset=Vector3(0.0, 1.75, -1.0),
                 movement=CameraMovementInstruction(
                     type="pan",
                     target=o,
-                    speed=6.0,
+                    speed=12.0,
                     radius=1.5,
                 ),
             )
 
         if beat_plan.beat_id == 5:
-            # Face close-up. Character faces 180, so camera should be in front along negative Z.
-            cam_pos = Vector3(char_pos.x, char_pos.y + 1.55, char_pos.z - 1.7)
-            look_point = Vector3(char_pos.x, char_pos.y + 1.55, char_pos.z)
-            rotation = self._look_at_rotation(cam_pos, look_point)
-
             return CameraPlan(
                 name="VCam_5",
-                shot_type=beat_plan.shot_type,
-                position=cam_pos,
-                rotation=rotation,
-                fov=34.0,
+                shot_type="close_up",
+                position=Vector3(0.0, 0.0, 0.0),
+                rotation=Rotation(0.0, 0.0, 0.0),
+                fov=36.0,
                 look_at=c,
-                follow=None,
+                follow=c,
+                offset=Vector3(0.0, 1.72, 2.0),
                 movement=CameraMovementInstruction(
                     type="dolly_in",
                     target=c,
-                    speed=0.08,
+                    speed=0.12,
                     radius=None,
                 ),
             )
 
-        cam_pos = Vector3(char_pos.x, char_pos.y + 2.0, char_pos.z - 5.0)
-        rotation = self._look_at_rotation(cam_pos, char_pos)
-
         return CameraPlan(
             name=f"VCam_{beat_plan.beat_id}",
             shot_type=beat_plan.shot_type,
-            position=cam_pos,
-            rotation=rotation,
+            position=Vector3(0.0, 0.0, 0.0),
+            rotation=Rotation(0.0, 0.0, 0.0),
             fov=50.0,
             look_at=c,
-            follow=None,
+            follow=c,
+            offset=Vector3(0.0, 1.7, -4.0),
             movement=CameraMovementInstruction(
                 type=beat_plan.camera_movement,
                 target=c,
@@ -397,14 +376,6 @@ class CinematographerAgent:
     @staticmethod
     def _vec(data: Dict[str, Any]) -> Vector3:
         return Vector3(float(data["x"]), float(data["y"]), float(data["z"]))
-
-    @staticmethod
-    def _midpoint(a: Vector3, b: Vector3) -> Vector3:
-        return Vector3(
-            (a.x + b.x) / 2.0,
-            (a.y + b.y) / 2.0,
-            (a.z + b.z) / 2.0,
-            )
 
     @staticmethod
     def _look_at_rotation(camera_pos: Vector3, target_pos: Vector3) -> Rotation:
@@ -449,8 +420,11 @@ class UnitySafetyValidatorAgent:
                 raise ValueError(f"Invalid speaker name in beat {beat.beat_id}: {beat.speaker}")
 
             if beat.camera.look_at:
-                if beat.camera.look_at not in allowed_characters and beat.camera.look_at not in allowed_objects:
-                    raise ValueError(f"Invalid look_at target in beat {beat.beat_id}: {beat.camera.look_at}")
+                is_feet_target = beat.camera.look_at.endswith("_FEET")
+
+                if not is_feet_target:
+                    if beat.camera.look_at not in allowed_characters and beat.camera.look_at not in allowed_objects:
+                        raise ValueError(f"Invalid look_at target in beat {beat.beat_id}: {beat.camera.look_at}")
 
             if beat.camera.follow:
                 if beat.camera.follow not in allowed_characters and beat.camera.follow not in allowed_objects:
@@ -463,8 +437,8 @@ class MultiAgentDirectorBrain:
     """
     Camera-Artist-inspired multi-agent director brain for Unity.
 
-    This is still local/deterministic, but the logic is separated into agents
-    so it can later be replaced with real LLM calls agent by agent.
+    The system is not rule-based inside Unity. The agents decide cinematic
+    parameters, and Unity applies those values to real scene objects.
     """
 
     def __init__(self) -> None:
@@ -516,6 +490,7 @@ class MultiAgentDirectorBrain:
                     fov=camera.fov,
                     look_at=camera.look_at,
                     follow=camera.follow,
+                    offset=camera.offset,
                     movement=camera.movement,
                 ),
                 transition=transition,
@@ -536,7 +511,6 @@ class MultiAgentDirectorBrain:
         return self.validator_agent.validate_names(script, scene_context)
 
 
-# Keep old name so main.py does not need to change.
 class LocalDirectorBrain(MultiAgentDirectorBrain):
     pass
 
