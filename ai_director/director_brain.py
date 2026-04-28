@@ -141,7 +141,7 @@ class DirectorAgent:
                 speaker=c,
                 dialogue="",
                 shot_type="medium_shot",
-                camera_movement="static",
+                camera_movement="follow",
                 duration=6.0,
                 transition="cut",
             ),
@@ -239,16 +239,10 @@ class BlockingAgent:
 
 class CinematographerAgent:
     """
-    Camera Artist-inspired cinematic planning agent.
+    Camera-Artist-inspired cinematic planning agent.
 
-    This agent decides exact target-relative cinematic values:
-    - offset from subject
-    - FOV
-    - camera movement
-    - LookAt target
-    - Follow target
-
-    Unity applies these values relative to real scene objects.
+    For this stage, these values are reference cinematic decisions.
+    Later, the LLM should generate these values automatically.
     """
 
     def create_camera_plan(
@@ -264,7 +258,8 @@ class CinematographerAgent:
         object_pos = self._vec(scene_context.get("default_object_position", {"x": -5.0, "y": 0.0, "z": -3.0}))
 
         if beat_plan.beat_id == 1:
-            cam_pos = Vector3(object_pos.x, object_pos.y + 12.0, object_pos.z + 10.0)
+            # Establishing orbit. Keep world-space position only for aerial/environment shots.
+            cam_pos = Vector3(object_pos.x, object_pos.y + 7.0, object_pos.z + 9.0)
             rotation = self._look_at_rotation(cam_pos, object_pos)
 
             return CameraPlan(
@@ -272,28 +267,29 @@ class CinematographerAgent:
                 shot_type="wide_shot",
                 position=cam_pos,
                 rotation=rotation,
-                fov=50.0,
+                fov=55.0,
                 look_at=o,
                 follow=None,
                 offset=None,
                 movement=CameraMovementInstruction(
                     type="orbit",
                     target=o,
-                    speed=15.0,
-                    radius=10.0,
+                    speed=8.0,
+                    radius=9.0,
                 ),
             )
 
         if beat_plan.beat_id == 2:
+            # Low feet follow shot.
             return CameraPlan(
                 name="VCam_2",
                 shot_type="close_up",
                 position=Vector3(0.0, 0.0, 0.0),
                 rotation=Rotation(0.0, 0.0, 0.0),
-                fov=42.0,
+                fov=45.0,
                 look_at=f"{c}_FEET",
                 follow=c,
-                offset=Vector3(0.15, 0.28, -1.45),
+                offset=Vector3(0.25, 0.45, -2.0),
                 movement=CameraMovementInstruction(
                     type="follow",
                     target=c,
@@ -303,55 +299,58 @@ class CinematographerAgent:
             )
 
         if beat_plan.beat_id == 3:
+            # Medium frontal follow/approach shot.
             return CameraPlan(
                 name="VCam_3",
                 shot_type="medium_shot",
                 position=Vector3(0.0, 0.0, 0.0),
                 rotation=Rotation(0.0, 0.0, 0.0),
-                fov=58.0,
+                fov=55.0,
                 look_at=c,
                 follow=c,
-                offset=Vector3(-0.35, 1.85, 7.0),
+                offset=Vector3(0.0, 1.8, 4.5),
                 movement=CameraMovementInstruction(
-                    type="static",
+                    type="follow",
                     target=c,
-                    speed=None,
+                    speed=0.8,
                     radius=None,
                 ),
             )
 
         if beat_plan.beat_id == 4:
+            # Over-the-shoulder reveal with more breathing room behind character.
             return CameraPlan(
                 name="VCam_4",
                 shot_type="over_the_shoulder",
                 position=Vector3(0.0, 0.0, 0.0),
                 rotation=Rotation(0.0, 0.0, 0.0),
-                fov=55.0,
+                fov=60.0,
                 look_at=o,
                 follow=c,
-                offset=Vector3(0.0, 1.75, -1.0),
+                offset=Vector3(0.55, 1.85, -2.2),
                 movement=CameraMovementInstruction(
                     type="pan",
                     target=o,
-                    speed=12.0,
+                    speed=8.0,
                     radius=1.5,
                 ),
             )
 
         if beat_plan.beat_id == 5:
+            # Face close-up. Look at head bone, not character root.
             return CameraPlan(
                 name="VCam_5",
                 shot_type="close_up",
                 position=Vector3(0.0, 0.0, 0.0),
                 rotation=Rotation(0.0, 0.0, 0.0),
-                fov=36.0,
-                look_at=c,
+                fov=32.0,
+                look_at=f"{c}_HEAD",
                 follow=c,
-                offset=Vector3(0.0, 1.72, 2.0),
+                offset=Vector3(0.0, 1.75, 2.4),
                 movement=CameraMovementInstruction(
                     type="dolly_in",
-                    target=c,
-                    speed=0.12,
+                    target=f"{c}_HEAD",
+                    speed=0.10,
                     radius=None,
                 ),
             )
@@ -420,9 +419,12 @@ class UnitySafetyValidatorAgent:
                 raise ValueError(f"Invalid speaker name in beat {beat.beat_id}: {beat.speaker}")
 
             if beat.camera.look_at:
-                is_feet_target = beat.camera.look_at.endswith("_FEET")
+                is_bone_target = (
+                        beat.camera.look_at.endswith("_FEET") or
+                        beat.camera.look_at.endswith("_HEAD")
+                )
 
-                if not is_feet_target:
+                if not is_bone_target:
                     if beat.camera.look_at not in allowed_characters and beat.camera.look_at not in allowed_objects:
                         raise ValueError(f"Invalid look_at target in beat {beat.beat_id}: {beat.camera.look_at}")
 
@@ -437,8 +439,10 @@ class MultiAgentDirectorBrain:
     """
     Camera-Artist-inspired multi-agent director brain for Unity.
 
-    The system is not rule-based inside Unity. The agents decide cinematic
-    parameters, and Unity applies those values to real scene objects.
+    Current stage:
+    - Agents generate structured cinematic values.
+    - Unity executes those values.
+    - These values act as reference examples for future LLM/fine-tuning.
     """
 
     def __init__(self) -> None:

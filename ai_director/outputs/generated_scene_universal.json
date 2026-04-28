@@ -27,23 +27,23 @@
         "shot_type": "wide_shot",
         "position": {
           "x": -5.686945,
-          "y": 11.825413,
-          "z": 7.0
+          "y": 6.825413,
+          "z": 6.0
         },
         "rotation": {
-          "x": 50.19,
+          "x": 37.87,
           "y": 180.0,
           "z": 0.0
         },
-        "fov": 50.0,
+        "fov": 55.0,
         "look_at": "ROCK",
         "follow": null,
         "offset": null,
         "movement": {
           "type": "orbit",
           "target": "ROCK",
-          "speed": 15.0,
-          "radius": 10.0
+          "speed": 8.0,
+          "radius": 9.0
         }
       },
       "transition": {
@@ -89,13 +89,13 @@
           "y": 0.0,
           "z": 0.0
         },
-        "fov": 42.0,
+        "fov": 45.0,
         "look_at": "UNCLE_BEN_FEET",
         "follow": "UNCLE_BEN",
         "offset": {
-          "x": 0.15,
-          "y": 0.28,
-          "z": -1.45
+          "x": 0.25,
+          "y": 0.45,
+          "z": -2.0
         },
         "movement": {
           "type": "follow",
@@ -147,18 +147,18 @@
           "y": 0.0,
           "z": 0.0
         },
-        "fov": 58.0,
+        "fov": 55.0,
         "look_at": "UNCLE_BEN",
         "follow": "UNCLE_BEN",
         "offset": {
-          "x": -0.35,
-          "y": 1.85,
-          "z": 7.0
+          "x": 0.0,
+          "y": 1.8,
+          "z": 4.5
         },
         "movement": {
-          "type": "static",
+          "type": "follow",
           "target": "UNCLE_BEN",
-          "speed": null,
+          "speed": 0.8,
           "radius": null
         }
       },
@@ -201,18 +201,18 @@
           "y": 0.0,
           "z": 0.0
         },
-        "fov": 55.0,
+        "fov": 60.0,
         "look_at": "ROCK",
         "follow": "UNCLE_BEN",
         "offset": {
-          "x": 0.0,
-          "y": 1.75,
-          "z": -1.0
+          "x": 0.55,
+          "y": 1.85,
+          "z": -2.2
         },
         "movement": {
           "type": "pan",
           "target": "ROCK",
-          "speed": 12.0,
+          "speed": 8.0,
           "radius": 1.5
         }
       },
@@ -255,18 +255,18 @@
           "y": 0.0,
           "z": 0.0
         },
-        "fov": 36.0,
-        "look_at": "UNCLE_BEN",
+        "fov": 32.0,
+        "look_at": "UNCLE_BEN_HEAD",
         "follow": "UNCLE_BEN",
         "offset": {
           "x": 0.0,
-          "y": 1.72,
-          "z": 2.0
+          "y": 1.75,
+          "z": 2.4
         },
         "movement": {
           "type": "dolly_in",
-          "target": "UNCLE_BEN",
-          "speed": 0.12,
+          "target": "UNCLE_BEN_HEAD",
+          "speed": 0.1,
           "radius": null
         }
       },

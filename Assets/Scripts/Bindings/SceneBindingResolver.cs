@@ -3,9 +3,6 @@ using System.Linq;
 
 public class SceneBindingResolver : MonoBehaviour
 {
-    // ─────────────────────────────────────────────────────────────────
-    // MAIN ENTRY POINT
-    // ─────────────────────────────────────────────────────────────────
     public Transform ResolveTarget(string name)
     {
         if (string.IsNullOrEmpty(name))
@@ -13,66 +10,49 @@ public class SceneBindingResolver : MonoBehaviour
 
         string lowerName = name.ToLower();
 
-        // =====================================================
-        // STEP 0: SEMANTIC MAPPINGS
-        // =====================================================
-
-        // FIX #4: Correct Mixamo rig foot bone paths.
-        // The previous path "UNCLE_BEN/Armature/Hips/Leg/Foot" was generic
-        // and always returned null. Mixamo rigs use the "mixamorig:" prefix.
-        if (lowerName == "uncle_ben_feet" || lowerName == "feet")
+        // ── Semantic bone mappings ────────────────────────────────────
+        if (lowerName.EndsWith("_feet") || lowerName == "feet")
         {
-            // Try left foot first
-            Transform t = SafeFind("UNCLE_BEN/mixamorig:Hips/mixamorig:LeftUpLeg/mixamorig:LeftLeg/mixamorig:LeftFoot");
+            string rootName = name.Replace("_FEET", "").Replace("_feet", "");
+            Transform feet = ResolveFeet(rootName);
 
-            // Fallback to right foot
-            if (t == null)
-                t = SafeFind("UNCLE_BEN/mixamorig:Hips/mixamorig:RightUpLeg/mixamorig:RightLeg/mixamorig:RightFoot");
-
-            // Last resort: search by partial bone name
-            if (t == null)
-                t = FindBoneByPartialName("UNCLE_BEN", "LeftFoot");
-            if (t == null)
-                t = FindBoneByPartialName("UNCLE_BEN", "Foot");
-
-            if (t != null)
+            if (feet != null)
             {
-                Debug.Log("🦶 Resolved FEET → " + t.name);
-                return t;
+                Debug.Log("🦶 Resolved FEET target → " + feet.name);
+                return feet;
             }
 
-            Debug.LogWarning("⚠️ Foot bone not found. Check your Mixamo rig hierarchy in the Inspector.");
+            Debug.LogWarning($"⚠️ Could not resolve FEET target for: {name}");
         }
 
-        // Head bone mapping
-        if (lowerName == "uncle_ben_head" || lowerName == "head")
+        if (lowerName.EndsWith("_head") || lowerName == "head")
         {
-            Transform t = SafeFind("UNCLE_BEN/mixamorig:Hips/mixamorig:Spine/mixamorig:Spine1/mixamorig:Spine2/mixamorig:Neck/mixamorig:Head");
-            if (t == null)
-                t = FindBoneByPartialName("UNCLE_BEN", "Head");
-            if (t != null)
+            string rootName = name.Replace("_HEAD", "").Replace("_head", "");
+            Transform head = ResolveHead(rootName);
+
+            if (head != null)
             {
-                Debug.Log("🗣️ Resolved HEAD → " + t.name);
-                return t;
+                Debug.Log("🗣️ Resolved HEAD target → " + head.name);
+                return head;
             }
+
+            Debug.LogWarning($"⚠️ Could not resolve HEAD target for: {name}");
         }
 
-        // =====================================================
-        // 1. EXACT NAME MATCH
-        // =====================================================
+        // ── Exact name match ──────────────────────────────────────────
         GameObject obj = GameObject.Find(name);
+
         if (obj != null)
         {
             Debug.Log($"✅ Found by EXACT name: {name}");
             return obj.transform;
         }
 
-        // =====================================================
-        // 2. TAG MATCH (SAFE — NO CRASH)
-        // =====================================================
+        // ── Tag match ─────────────────────────────────────────────────
         try
         {
             GameObject tagged = GameObject.FindGameObjectWithTag(name);
+
             if (tagged != null)
             {
                 Debug.Log($"✅ Found by TAG: {name}");
@@ -84,22 +64,20 @@ public class SceneBindingResolver : MonoBehaviour
             Debug.LogWarning($"⚠️ Tag not defined: {name}");
         }
 
-        // =====================================================
-        // 3. PARTIAL NAME MATCH (SMART FALLBACK)
-        // =====================================================
+        // ── Partial name fallback ─────────────────────────────────────
         GameObject partial = FindPartial(name);
+
         if (partial != null)
         {
             Debug.Log($"⚠️ Found by PARTIAL match: {partial.name}");
             return partial.transform;
         }
 
-        // =====================================================
-        // 4. ENVIRONMENT FALLBACK
-        // =====================================================
+        // ── Environment fallback ──────────────────────────────────────
         if (name.ToUpper() == "ENVIRONMENT")
         {
             GameObject env = GameObject.Find("ENVIRONMENT");
+
             if (env != null)
             {
                 Debug.Log("🌍 Using ENVIRONMENT fallback");
@@ -107,49 +85,75 @@ public class SceneBindingResolver : MonoBehaviour
             }
         }
 
-        // =====================================================
-        // FINAL FAIL SAFE
-        // =====================================================
-        Debug.LogWarning($"❌ Could not resolve: '{name}' — check spelling and that the object exists in the scene.");
+        Debug.LogWarning($"❌ Could not resolve: '{name}' — check spelling and scene hierarchy.");
         return null;
     }
 
-    // ─────────────────────────────────────────────────────────────────
     public Transform ResolveSpeaker(string speaker) => ResolveTarget(speaker);
     public Transform ResolveFocus(string focus) => ResolveTarget(focus);
 
-    // ─────────────────────────────────────────────────────────────────
-    // Searches all children of a named root object for a bone by partial name
-    // ─────────────────────────────────────────────────────────────────
+    private Transform ResolveFeet(string rootName)
+    {
+        if (string.IsNullOrEmpty(rootName))
+            rootName = "UNCLE_BEN";
+
+        Transform t = SafeFind(rootName + "/mixamorig:Hips/mixamorig:LeftUpLeg/mixamorig:LeftLeg/mixamorig:LeftFoot");
+
+        if (t == null)
+            t = SafeFind(rootName + "/mixamorig:Hips/mixamorig:RightUpLeg/mixamorig:RightLeg/mixamorig:RightFoot");
+
+        if (t == null)
+            t = FindBoneByPartialName(rootName, "LeftFoot");
+
+        if (t == null)
+            t = FindBoneByPartialName(rootName, "RightFoot");
+
+        if (t == null)
+            t = FindBoneByPartialName(rootName, "Foot");
+
+        return t;
+    }
+
+    private Transform ResolveHead(string rootName)
+    {
+        if (string.IsNullOrEmpty(rootName))
+            rootName = "UNCLE_BEN";
+
+        Transform t = SafeFind(rootName + "/mixamorig:Hips/mixamorig:Spine/mixamorig:Spine1/mixamorig:Spine2/mixamorig:Neck/mixamorig:Head");
+
+        if (t == null)
+            t = FindBoneByPartialName(rootName, "Head");
+
+        return t;
+    }
+
     private Transform FindBoneByPartialName(string rootName, string boneName)
     {
         GameObject root = GameObject.Find(rootName);
-        if (root == null) return null;
 
-        boneName = boneName.ToLower();
+        if (root == null)
+            return null;
+
+        string lowerBoneName = boneName.ToLower();
 
         foreach (Transform child in root.GetComponentsInChildren<Transform>())
         {
-            if (child.name.ToLower().Contains(boneName))
+            if (child.name.ToLower().Contains(lowerBoneName))
                 return child;
         }
 
         return null;
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // Partial name search across all scene objects
-    // ─────────────────────────────────────────────────────────────────
     private GameObject FindPartial(string keyword)
     {
-        keyword = keyword.ToLower();
+        string lowerKeyword = keyword.ToLower();
+
         GameObject[] allObjects = GameObject.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
-        return allObjects.FirstOrDefault(obj => obj.name.ToLower().Contains(keyword));
+
+        return allObjects.FirstOrDefault(obj => obj.name.ToLower().Contains(lowerKeyword));
     }
 
-    // ─────────────────────────────────────────────────────────────────
-    // Safe find that returns null instead of throwing
-    // ─────────────────────────────────────────────────────────────────
     private Transform SafeFind(string path)
     {
         GameObject obj = GameObject.Find(path);
