@@ -15,7 +15,7 @@ public class TimelineBuilder : MonoBehaviour
     public string outputFolder = "Assets/GeneratedCutscenes";
 
     // ==============================
-    // ✅ CREATE / LOAD TIMELINE
+    // CREATE / LOAD TIMELINE
     // ==============================
     public TimelineAsset CreateTimelineAsset(string timelineName)
     {
@@ -41,7 +41,7 @@ public class TimelineBuilder : MonoBehaviour
     }
 
     // ==============================
-    // ✅ TRACK CREATION
+    // TRACK CREATION
     // ==============================
     public AnimationTrack CreateAnimationTrack(TimelineAsset timeline, string trackName)
     {
@@ -69,7 +69,7 @@ public class TimelineBuilder : MonoBehaviour
     }
 
     // ==============================
-    // ✅ CLIP ADDERS
+    // CLIP ADDERS
     // ==============================
 
     public void AddActivationClip(ActivationTrack track, double start, double duration)
@@ -80,13 +80,22 @@ public class TimelineBuilder : MonoBehaviour
         clip.displayName = "Active";
     }
 
-    // 🔥 FINAL FIX: REAL ANIMATION ASSIGNMENT
+    /// <summary>
+    /// FIX #1: Set trackOffset = ApplyTransformOffsets so the Animation Track
+    /// does NOT write root motion to the character transform. This lets
+    /// CutsceneCharacterMover own the position/rotation exclusively.
+    /// Without this fix the animation clip and the mover fight every frame,
+    /// causing the "walks but stays in place" bug.
+    /// </summary>
     public void AddAnimationClip(
         AnimationTrack track,
         double start,
         double duration,
         string animationName)
     {
+        // ── FIX #1: Prevent Timeline from applying root motion ────────
+        track.trackOffset = TrackOffset.ApplyTransformOffsets;
+
         var clip = track.CreateClip<AnimationPlayableAsset>();
         clip.start = start;
         clip.duration = duration;
@@ -94,7 +103,10 @@ public class TimelineBuilder : MonoBehaviour
 
         AnimationPlayableAsset asset = clip.asset as AnimationPlayableAsset;
 
-        // 🔥 LOAD FROM RESOURCES
+        // Disable foot IK on the clip asset as well
+        asset.applyFootIK = false;
+
+        // Load animation from Resources/Animations/
         AnimationClip anim = Resources.Load<AnimationClip>("Animations/" + animationName);
 
         if (anim == null)
@@ -104,10 +116,11 @@ public class TimelineBuilder : MonoBehaviour
         }
 
         asset.clip = anim;
+        Debug.Log($"✅ Animation clip assigned: {animationName}");
     }
 
     // ==============================
-    // 🎥 CINEMACHINE SHOTS
+    // CINEMACHINE SHOTS
     // ==============================
     public CinemachineShot AddCinemachineShotClip(
         CinemachineTrack track,
@@ -138,7 +151,7 @@ public class TimelineBuilder : MonoBehaviour
     }
 
     // ==============================
-    // 💾 SAVE TIMELINE
+    // SAVE TIMELINE
     // ==============================
     public void SaveTimeline(TimelineAsset timeline)
     {

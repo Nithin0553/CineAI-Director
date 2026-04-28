@@ -10,7 +10,7 @@
     "intent": "establish",
     "shot_type": "wide_shot",
     "camera_angle": "high_angle",
-    "camera_movement": "orbit",
+    "camera_movement": "dolly_in",
     "focus_target": "ROCK",
     "duration": 4,
     "transition": "fade"

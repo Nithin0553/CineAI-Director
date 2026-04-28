@@ -1,0 +1,157 @@
+{
+  "beats": [
+
+    {
+      "scene_id": 1,
+      "beat_id": 1,
+      "speaker": "",
+      "dialogue": "",
+      "action": "AERIAL SHOT. Bird eye view. Camera rotates in slow circular orbit around the ROCK from high above. Rock is centered in frame throughout.",
+      "emotion": "mysterious",
+      "intent": "establish",
+      "shot_type": "wide_shot",
+      "camera_angle": "top_down",
+      "camera_movement": "orbit",
+      "focus_target": "ROCK",
+      "duration": 6,
+      "transition": "cut",
+
+      "use_exact_camera_position": true,
+      "camera_position_x": 546.6888,
+      "camera_position_y": 338.0,
+      "camera_position_z": 459.2482,
+      "fov_override": 50,
+      "orbit_speed_override": 20,
+
+      "use_char_start_position": false
+    },
+
+    {
+      "scene_id": 1,
+      "beat_id": 2,
+      "speaker": "UNCLE_BEN",
+      "dialogue": "I need to find Peter before the sunset.",
+      "action": "CLOSE SHOT FEET. Only Uncle Ben feet visible. Camera stays at ground level and follows his footsteps as he walks forward. Voiceover plays over this shot.",
+      "emotion": "concern",
+      "intent": "approach",
+      "shot_type": "close_up",
+      "camera_angle": "low_angle",
+      "camera_movement": "follow",
+      "focus_target": "UNCLE_BEN_FEET",
+      "duration": 5,
+      "transition": "cut",
+
+      "use_exact_camera_offset": true,
+      "camera_offset_x": 0.0,
+      "camera_offset_y": 0.15,
+      "camera_offset_z": -0.85,
+      "fov_override": 32,
+
+      "use_char_start_position": true,
+      "char_start_x": -5.686945,
+      "char_start_y": -0.174587,
+      "char_start_z": 12.0,
+      "use_char_end_position": true,
+      "char_end_x": -5.686945,
+      "char_end_y": -0.174587,
+      "char_end_z": 4.0,
+      "use_char_facing": true,
+      "char_facing_y": 180
+    },
+
+    {
+      "scene_id": 1,
+      "beat_id": 3,
+      "speaker": "UNCLE_BEN",
+      "dialogue": "",
+      "action": "MEDIUM SHOT FRONT. Camera faces Uncle Ben at eye level. He walks toward the camera and toward the stone. Camera holds static as he approaches and slows to a stop in front of the stone.",
+      "emotion": "focused",
+      "intent": "approach",
+      "shot_type": "medium_shot",
+      "camera_angle": "eye_level",
+      "camera_movement": "static",
+      "focus_target": "UNCLE_BEN",
+      "duration": 6,
+      "transition": "cut",
+
+      "use_exact_camera_offset": true,
+      "camera_offset_x": 0.0,
+      "camera_offset_y": 1.7,
+      "camera_offset_z": 5.5,
+      "fov_override": 50,
+
+      "use_char_start_position": true,
+      "char_start_x": -5.686945,
+      "char_start_y": -0.174587,
+      "char_start_z": 4.0,
+      "use_char_end_position": true,
+      "char_end_x": -5.686945,
+      "char_end_y": -0.174587,
+      "char_end_z": -1.0,
+      "use_char_facing": true,
+      "char_facing_y": 180
+    },
+
+    {
+      "scene_id": 1,
+      "beat_id": 4,
+      "speaker": "UNCLE_BEN",
+      "dialogue": "",
+      "action": "OVER THE SHOULDER BACK SHOT. Camera is directly behind Uncle Ben at shoulder height. Uncle Ben stands idle. Camera slowly pans right revealing the mysterious rock standing in front of him.",
+      "emotion": "mysterious",
+      "intent": "reveal",
+      "shot_type": "over_the_shoulder",
+      "camera_angle": "eye_level",
+      "camera_movement": "pan",
+      "focus_target": "ROCK",
+      "secondary_target": "UNCLE_BEN",
+      "duration": 5,
+      "transition": "cut",
+
+      "use_exact_camera_offset": true,
+      "camera_offset_x": 0.0,
+      "camera_offset_y": 1.75,
+      "camera_offset_z": -1.0,
+      "fov_override": 55,
+      "pan_speed_override": 15,
+
+      "use_char_start_position": true,
+      "char_start_x": -5.686945,
+      "char_start_y": -0.174587,
+      "char_start_z": -1.0,
+      "use_char_facing": true,
+      "char_facing_y": 180
+    },
+
+    {
+      "scene_id": 1,
+      "beat_id": 5,
+      "speaker": "UNCLE_BEN",
+      "dialogue": "Strange where did this rock come from?",
+      "action": "CLOSE UP. Tight shot on Uncle Ben face. Expression shows confusion and disbelief. Very slow dolly push in. Voiceover delivers the line. Scene fades out.",
+      "emotion": "confused",
+      "intent": "question",
+      "shot_type": "close_up",
+      "camera_angle": "eye_level",
+      "camera_movement": "dolly_in",
+      "focus_target": "UNCLE_BEN",
+      "duration": 5,
+      "transition": "fade",
+
+      "use_exact_camera_offset": true,
+      "camera_offset_x": 0.0,
+      "camera_offset_y": 1.65,
+      "camera_offset_z": -2.0,
+      "fov_override": 34,
+      "dolly_speed_override": 0.12,
+
+      "use_char_start_position": true,
+      "char_start_x": -5.686945,
+      "char_start_y": -0.174587,
+      "char_start_z": -1.0,
+      "use_char_facing": true,
+      "char_facing_y": 180
+    }
+
+  ]
+}
