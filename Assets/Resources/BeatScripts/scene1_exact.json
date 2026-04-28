@@ -42,10 +42,10 @@
       "transition": "cut",
 
       "use_exact_camera_offset": true,
-      "camera_offset_x": 0.0,
-      "camera_offset_y": 0.15,
-      "camera_offset_z": -0.85,
-      "fov_override": 32,
+      "camera_offset_x": 0.15,
+      "camera_offset_y": 0.28,
+      "camera_offset_z": -1.45,
+      "fov_override": 42,
 
       "use_char_start_position": true,
       "char_start_x": -5.686945,
@@ -75,10 +75,10 @@
       "transition": "cut",
 
       "use_exact_camera_offset": true,
-      "camera_offset_x": 0.0,
-      "camera_offset_y": 1.7,
-      "camera_offset_z": 5.5,
-      "fov_override": 50,
+      "camera_offset_x": -0.45,
+      "camera_offset_y": 1.85,
+      "camera_offset_z": 7.0,
+      "fov_override": 60,
 
       "use_char_start_position": true,
       "char_start_x": -5.686945,
@@ -140,9 +140,9 @@
 
       "use_exact_camera_offset": true,
       "camera_offset_x": 0.0,
-      "camera_offset_y": 1.65,
-      "camera_offset_z": -2.0,
-      "fov_override": 34,
+      "camera_offset_y": 1.72,
+      "camera_offset_z": 2.0,
+      "fov_override": 36,
       "dolly_speed_override": 0.12,
 
       "use_char_start_position": true,
