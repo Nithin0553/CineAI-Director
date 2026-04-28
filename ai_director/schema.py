@@ -188,48 +188,42 @@ class UniversalBeatScript:
 
 def unity_legacy_beat_script(universal_script: UniversalBeatScript) -> Dict[str, Any]:
     """
-    Converts the universal schema into your current Unity Beat.cs-compatible format.
+    Converts Universal Beat Script into the current Unity Beat.cs format.
 
-    This is important because your current Unity loader expects:
-    {
-      "beats": [
-        {
-          "scene_id": 1,
-          "beat_id": 1,
-          "speaker": "...",
-          "dialogue": "...",
-          "action": "...",
-          "emotion": "...",
-          "intent": "...",
-          "shot_type": "...",
-          "camera_angle": "...",
-          "camera_movement": "...",
-          "focus_target": "...",
-          "duration": 5,
-          ...
-        }
-      ]
-    }
+    This version also includes extra interpreter fields:
+    - camera rotation
+    - camera follow target
+    - camera look-at target
+    - animation name
+    - character move speed
     """
+
     legacy_beats: List[Dict[str, Any]] = []
 
     for beat in universal_script.beats:
         cam = beat.camera
         char = beat.character
+        movement = cam.movement
+
+        speaker_name = char.name if char else beat.speaker
+        focus_target = cam.look_at or cam.follow or (char.name if char else "")
 
         legacy: Dict[str, Any] = {
             "scene_id": 1,
             "beat_id": beat.beat_id,
-            "speaker": beat.speaker,
+
+            "speaker": speaker_name,
             "dialogue": beat.dialogue,
             "action": beat.action,
             "emotion": beat.emotion,
             "intent": beat.intent,
+
             "shot_type": cam.shot_type,
             "camera_angle": "eye_level",
-            "camera_movement": cam.movement.type,
-            "focus_target": cam.look_at or cam.follow or "",
+            "camera_movement": movement.type,
+            "focus_target": focus_target,
             "secondary_target": "",
+
             "duration": beat.duration,
             "transition": beat.transition.type,
 
@@ -238,15 +232,27 @@ def unity_legacy_beat_script(universal_script: UniversalBeatScript) -> Dict[str,
             "camera_position_y": cam.position.y,
             "camera_position_z": cam.position.z,
 
+            "use_exact_camera_rotation": True,
+            "camera_rotation_x": cam.rotation.x,
+            "camera_rotation_y": cam.rotation.y,
+            "camera_rotation_z": cam.rotation.z,
+
+            "camera_follow_target": cam.follow or "",
+            "camera_look_at_target": cam.look_at or focus_target,
+
             "use_exact_camera_offset": False,
             "camera_offset_x": 0.0,
             "camera_offset_y": 0.0,
             "camera_offset_z": 0.0,
 
             "fov_override": cam.fov,
-            "orbit_speed_override": cam.movement.speed if cam.movement.type == "orbit" and cam.movement.speed else 0.0,
-            "dolly_speed_override": cam.movement.speed if cam.movement.type in {"dolly_in", "dolly_out"} and cam.movement.speed else 0.0,
-            "pan_speed_override": cam.movement.speed if cam.movement.type == "pan" and cam.movement.speed else 0.0,
+
+            "orbit_speed_override": movement.speed if movement.type == "orbit" and movement.speed else 0.0,
+            "dolly_speed_override": movement.speed if movement.type in {"dolly_in", "dolly_out"} and movement.speed else 0.0,
+            "pan_speed_override": movement.speed if movement.type == "pan" and movement.speed else 0.0,
+
+            "animation_name": char.animation if char else "",
+            "move_speed": char.move_speed if char and char.move_speed else 0.0,
 
             "use_char_start_position": False,
             "char_start_x": 0.0,
