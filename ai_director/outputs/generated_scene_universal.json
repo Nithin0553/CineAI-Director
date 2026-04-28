@@ -44,7 +44,8 @@
           "target": "ROCK",
           "speed": 8.0,
           "radius": 9.0
-        }
+        },
+        "force_world_position": true
       },
       "transition": {
         "type": "cut",
@@ -102,7 +103,8 @@
           "target": "UNCLE_BEN",
           "speed": 1.0,
           "radius": null
-        }
+        },
+        "force_world_position": false
       },
       "transition": {
         "type": "cut",
@@ -160,7 +162,8 @@
           "target": "UNCLE_BEN",
           "speed": 0.8,
           "radius": null
-        }
+        },
+        "force_world_position": false
       },
       "transition": {
         "type": "cut",
@@ -214,7 +217,8 @@
           "target": "ROCK",
           "speed": 8.0,
           "radius": 1.5
-        }
+        },
+        "force_world_position": false
       },
       "transition": {
         "type": "cut",
@@ -255,20 +259,21 @@
           "y": 0.0,
           "z": 0.0
         },
-        "fov": 32.0,
+        "fov": 28.0,
         "look_at": "UNCLE_BEN_HEAD",
-        "follow": "UNCLE_BEN",
+        "follow": "UNCLE_BEN_HEAD",
         "offset": {
           "x": 0.0,
-          "y": 1.75,
-          "z": 2.4
+          "y": 0.15,
+          "z": -1.2
         },
         "movement": {
-          "type": "dolly_in",
+          "type": "follow",
           "target": "UNCLE_BEN_HEAD",
-          "speed": 0.1,
+          "speed": null,
           "radius": null
-        }
+        },
+        "force_world_position": false
       },
       "transition": {
         "type": "fade",

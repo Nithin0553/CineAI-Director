@@ -225,9 +225,16 @@ public class CutsceneCompiler : MonoBehaviour
         }
         else if (shot.followTarget != null)
         {
-            Quaternion facingRot = shot.followTarget.rotation;
-            camObject.transform.position = shot.followTarget.position + facingRot * shot.offset;
-            Debug.Log($"📷 VCam_{beat.beat_id} placed at offset {shot.offset} from {shot.followTarget.name}");
+            if (shot.useWorldOffset)
+            {
+                camObject.transform.position = shot.followTarget.position + shot.offset;
+                Debug.Log($"📷 VCam_{beat.beat_id} placed at WORLD offset {shot.offset} from {shot.followTarget.name}");
+            }
+            else
+            {
+                camObject.transform.position = shot.followTarget.position + shot.followTarget.rotation * shot.offset;
+                Debug.Log($"📷 VCam_{beat.beat_id} placed at LOCAL offset {shot.offset} from {shot.followTarget.name}");
+            }
         }
 
         if (beat.use_exact_camera_rotation)
@@ -279,8 +286,8 @@ public class CutsceneCompiler : MonoBehaviour
 
             var ext = camObject.AddComponent<CinemachineMotionExtension>();
 
-            Transform orbitTarget = shot.followTarget != null ? shot.followTarget : shot.lookTarget;
-            ext.target = orbitTarget;
+            Transform motionTarget = shot.followTarget != null ? shot.followTarget : shot.lookTarget;
+            ext.target = motionTarget;
             ext.lookTarget = shot.lookTarget;
 
             if (shot.movementType == "orbit")
@@ -290,11 +297,7 @@ public class CutsceneCompiler : MonoBehaviour
             else
             {
                 ext.useWorldAnchor = false;
-
-                if (shot.followTarget != null)
-                    ext.initialOffset = shot.followTarget.rotation * shot.offset;
-                else
-                    ext.initialOffset = shot.offset;
+                ext.initialOffset = shot.offset;
             }
 
             ext.motionType = MapMotionType(shot.movementType);
@@ -311,13 +314,13 @@ public class CutsceneCompiler : MonoBehaviour
             if (shot.panSpeedOverride > 0)
                 ext.panSpeed = shot.panSpeedOverride;
 
-            if (shot.movementType == "pan" && shot.followTarget != null)
+            if (shot.movementType == "pan" && motionTarget != null)
             {
-                Vector3 camToTarget = camObject.transform.position - shot.followTarget.position;
+                Vector3 camToTarget = camObject.transform.position - motionTarget.position;
                 camToTarget.y = 0;
 
                 ext.panRadius = Mathf.Max(camToTarget.magnitude, 0.5f);
-                ext.initialOffset = camObject.transform.position - shot.followTarget.position;
+                ext.initialOffset = camObject.transform.position - motionTarget.position;
 
                 Debug.Log($"🎥 VCam_{beat.beat_id} PAN radius={ext.panRadius:F2} seeded from spawn pos");
             }

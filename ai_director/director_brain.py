@@ -62,6 +62,7 @@ class CameraPlan:
     follow: Optional[str]
     offset: Optional[Vector3]
     movement: CameraMovementInstruction
+    force_world_position: bool = False
 
 
 class StoryUnderstandingAgent:
@@ -167,7 +168,7 @@ class DirectorAgent:
                 speaker=c,
                 dialogue=analysis.dialogue,
                 shot_type="close_up",
-                camera_movement="dolly_in",
+                camera_movement="follow",
                 duration=5.0,
                 transition="fade",
             ),
@@ -238,13 +239,6 @@ class BlockingAgent:
 
 
 class CinematographerAgent:
-    """
-    Camera-Artist-inspired cinematic planning agent.
-
-    For this stage, these values are reference cinematic decisions.
-    Later, the LLM should generate these values automatically.
-    """
-
     def create_camera_plan(
             self,
             beat_plan: BeatPlan,
@@ -258,7 +252,6 @@ class CinematographerAgent:
         object_pos = self._vec(scene_context.get("default_object_position", {"x": -5.0, "y": 0.0, "z": -3.0}))
 
         if beat_plan.beat_id == 1:
-            # Establishing orbit. Keep world-space position only for aerial/environment shots.
             cam_pos = Vector3(object_pos.x, object_pos.y + 7.0, object_pos.z + 9.0)
             rotation = self._look_at_rotation(cam_pos, object_pos)
 
@@ -277,10 +270,10 @@ class CinematographerAgent:
                     speed=8.0,
                     radius=9.0,
                 ),
+                force_world_position=True,
             )
 
         if beat_plan.beat_id == 2:
-            # Low feet follow shot.
             return CameraPlan(
                 name="VCam_2",
                 shot_type="close_up",
@@ -296,10 +289,10 @@ class CinematographerAgent:
                     speed=1.0,
                     radius=None,
                 ),
+                force_world_position=False,
             )
 
         if beat_plan.beat_id == 3:
-            # Medium frontal follow/approach shot.
             return CameraPlan(
                 name="VCam_3",
                 shot_type="medium_shot",
@@ -315,10 +308,10 @@ class CinematographerAgent:
                     speed=0.8,
                     radius=None,
                 ),
+                force_world_position=False,
             )
 
         if beat_plan.beat_id == 4:
-            # Over-the-shoulder reveal with more breathing room behind character.
             return CameraPlan(
                 name="VCam_4",
                 shot_type="over_the_shoulder",
@@ -334,25 +327,28 @@ class CinematographerAgent:
                     speed=8.0,
                     radius=1.5,
                 ),
+                force_world_position=False,
             )
 
         if beat_plan.beat_id == 5:
-            # Face close-up. Look at head bone, not character root.
+            head_target = f"{c}_HEAD"
+
             return CameraPlan(
                 name="VCam_5",
                 shot_type="close_up",
                 position=Vector3(0.0, 0.0, 0.0),
                 rotation=Rotation(0.0, 0.0, 0.0),
-                fov=32.0,
-                look_at=f"{c}_HEAD",
-                follow=c,
-                offset=Vector3(0.0, 1.75, 2.4),
+                fov=28.0,
+                look_at=head_target,
+                follow=head_target,
+                offset=Vector3(0.0, 0.15, -1.2),
                 movement=CameraMovementInstruction(
-                    type="dolly_in",
-                    target=f"{c}_HEAD",
-                    speed=0.10,
+                    type="follow",
+                    target=head_target,
+                    speed=None,
                     radius=None,
                 ),
+                force_world_position=False,
             )
 
         return CameraPlan(
@@ -370,6 +366,7 @@ class CinematographerAgent:
                 speed=None,
                 radius=None,
             ),
+            force_world_position=False,
         )
 
     @staticmethod
@@ -429,22 +426,19 @@ class UnitySafetyValidatorAgent:
                         raise ValueError(f"Invalid look_at target in beat {beat.beat_id}: {beat.camera.look_at}")
 
             if beat.camera.follow:
-                if beat.camera.follow not in allowed_characters and beat.camera.follow not in allowed_objects:
-                    raise ValueError(f"Invalid follow target in beat {beat.beat_id}: {beat.camera.follow}")
+                is_bone_target = (
+                        beat.camera.follow.endswith("_FEET") or
+                        beat.camera.follow.endswith("_HEAD")
+                )
+
+                if not is_bone_target:
+                    if beat.camera.follow not in allowed_characters and beat.camera.follow not in allowed_objects:
+                        raise ValueError(f"Invalid follow target in beat {beat.beat_id}: {beat.camera.follow}")
 
         return script
 
 
 class MultiAgentDirectorBrain:
-    """
-    Camera-Artist-inspired multi-agent director brain for Unity.
-
-    Current stage:
-    - Agents generate structured cinematic values.
-    - Unity executes those values.
-    - These values act as reference examples for future LLM/fine-tuning.
-    """
-
     def __init__(self) -> None:
         self.story_agent = StoryUnderstandingAgent()
         self.director_agent = DirectorAgent()
@@ -496,6 +490,7 @@ class MultiAgentDirectorBrain:
                     follow=camera.follow,
                     offset=camera.offset,
                     movement=camera.movement,
+                    force_world_position=camera.force_world_position,
                 ),
                 transition=transition,
             )

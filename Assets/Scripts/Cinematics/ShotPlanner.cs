@@ -16,6 +16,7 @@ public class ShotPlanner : MonoBehaviour
         PlannedShot shot = new PlannedShot();
         shot.shotType = beat.shot_type;
         shot.duration = beat.duration;
+        shot.useWorldOffset = true;
 
         Transform explicitFollow = null;
         Transform explicitLookAt = null;
@@ -57,11 +58,7 @@ public class ShotPlanner : MonoBehaviour
                 beat.camera_position_z
             );
 
-            if (shot.followTarget != null)
-                shot.offset = shot.exactPosition - shot.followTarget.position;
-            else
-                shot.offset = shot.exactPosition;
-
+            shot.offset = shot.exactPosition;
             shot.fov = beat.fov_override > 0 ? beat.fov_override : 50f;
 
             Debug.Log($"🎥 Beat {beat.beat_id} → AI EXACT WORLD POSITION {shot.exactPosition}");
@@ -70,6 +67,9 @@ public class ShotPlanner : MonoBehaviour
 
         if (beat.use_exact_camera_offset)
         {
+            shot.useExactPosition = false;
+            shot.useWorldOffset = true;
+
             shot.offset = new Vector3(
                 beat.camera_offset_x,
                 beat.camera_offset_y,
@@ -84,7 +84,7 @@ public class ShotPlanner : MonoBehaviour
             if (shot.lookTarget == null)
                 shot.lookTarget = focus != null ? focus : speaker;
 
-            Debug.Log($"🎥 Beat {beat.beat_id} → AI TARGET-RELATIVE OFFSET {shot.offset}");
+            Debug.Log($"🎥 Beat {beat.beat_id} → AI WORLD OFFSET {shot.offset}");
             return shot;
         }
 
