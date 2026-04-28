@@ -225,16 +225,8 @@ public class CutsceneCompiler : MonoBehaviour
         }
         else if (shot.followTarget != null)
         {
-            if (shot.useWorldOffset)
-            {
-                camObject.transform.position = shot.followTarget.position + shot.offset;
-                Debug.Log($"📷 VCam_{beat.beat_id} placed at WORLD offset {shot.offset} from {shot.followTarget.name}");
-            }
-            else
-            {
-                camObject.transform.position = shot.followTarget.position + shot.followTarget.rotation * shot.offset;
-                Debug.Log($"📷 VCam_{beat.beat_id} placed at LOCAL offset {shot.offset} from {shot.followTarget.name}");
-            }
+            camObject.transform.position = shot.followTarget.position + shot.offset;
+            Debug.Log($"📷 VCam_{beat.beat_id} placed at WORLD offset {shot.offset} from {shot.followTarget.name}");
         }
 
         if (beat.use_exact_camera_rotation)
@@ -268,62 +260,75 @@ public class CutsceneCompiler : MonoBehaviour
         {
             if (shot.followTarget != null)
             {
-                var follow = camObject.AddComponent<CinemachineFollow>();
-                follow.FollowOffset = shot.offset;
+                var ext = camObject.AddComponent<CinemachineMotionExtension>();
+                ext.target = shot.followTarget;
+                ext.lookTarget = shot.lookTarget;
+                ext.initialOffset = shot.offset;
+                ext.motionType = CinemachineMotionExtension.MotionType.Follow;
+
+                Debug.Log($"🎥 VCam_{beat.beat_id} using MotionExtension FOLLOW with world offset {shot.offset}");
+            }
+            else if (shot.lookTarget != null)
+            {
+                var ext = camObject.AddComponent<CinemachineMotionExtension>();
+                ext.target = shot.lookTarget;
+                ext.lookTarget = shot.lookTarget;
+                ext.initialOffset = shot.offset;
+                ext.motionType = CinemachineMotionExtension.MotionType.Static;
+
+                Debug.Log($"🎥 VCam_{beat.beat_id} using MotionExtension STATIC look target {shot.lookTarget.name}");
             }
 
-            var composer = camObject.AddComponent<CinemachineRotationComposer>();
-            composer.Composition.ScreenPosition = new Vector2(0.5f, 0.45f);
+            cam.Lens.FieldOfView = shot.fov;
+            return cam;
+        }
+
+        if (shot.lookTarget == null && shot.followTarget == null)
+        {
+            Debug.LogWarning($"⚠️ VCam_{beat.beat_id}: no follow/look target found. Skipping motion extension.");
+            cam.Lens.FieldOfView = shot.fov;
+            return cam;
+        }
+
+        var motionExt = camObject.AddComponent<CinemachineMotionExtension>();
+
+        Transform motionTarget = shot.followTarget != null ? shot.followTarget : shot.lookTarget;
+        motionExt.target = motionTarget;
+        motionExt.lookTarget = shot.lookTarget;
+
+        if (shot.movementType == "orbit")
+        {
+            SetupOrbitMotion(motionExt, beat, shot);
         }
         else
         {
-            if (shot.lookTarget == null && shot.followTarget == null)
-            {
-                Debug.LogWarning($"⚠️ VCam_{beat.beat_id}: no follow/look target found. Skipping motion extension.");
-                cam.Lens.FieldOfView = shot.fov;
-                return cam;
-            }
+            motionExt.useWorldAnchor = false;
+            motionExt.initialOffset = shot.offset;
+        }
 
-            var ext = camObject.AddComponent<CinemachineMotionExtension>();
+        motionExt.motionType = MapMotionType(shot.movementType);
 
-            Transform motionTarget = shot.followTarget != null ? shot.followTarget : shot.lookTarget;
-            ext.target = motionTarget;
-            ext.lookTarget = shot.lookTarget;
+        if (motionExt.target == null && !motionExt.useWorldAnchor && motionExt.lookTarget == null)
+            Debug.LogWarning($"⚠️ VCam_{beat.beat_id}: motion target is null! Set focus_target.");
 
-            if (shot.movementType == "orbit")
-            {
-                SetupOrbitMotion(ext, beat, shot);
-            }
-            else
-            {
-                ext.useWorldAnchor = false;
-                ext.initialOffset = shot.offset;
-            }
+        if (shot.orbitSpeedOverride > 0)
+            motionExt.orbitSpeed = shot.orbitSpeedOverride;
 
-            ext.motionType = MapMotionType(shot.movementType);
+        if (shot.dollySpeedOverride > 0)
+            motionExt.dollySpeed = shot.dollySpeedOverride;
 
-            if (ext.target == null && !ext.useWorldAnchor && ext.lookTarget == null)
-                Debug.LogWarning($"⚠️ VCam_{beat.beat_id}: motion target is null! Set focus_target.");
+        if (shot.panSpeedOverride > 0)
+            motionExt.panSpeed = shot.panSpeedOverride;
 
-            if (shot.orbitSpeedOverride > 0)
-                ext.orbitSpeed = shot.orbitSpeedOverride;
+        if (shot.movementType == "pan" && motionTarget != null)
+        {
+            Vector3 camToTarget = camObject.transform.position - motionTarget.position;
+            camToTarget.y = 0;
 
-            if (shot.dollySpeedOverride > 0)
-                ext.dollySpeed = shot.dollySpeedOverride;
+            motionExt.panRadius = Mathf.Max(camToTarget.magnitude, 0.5f);
+            motionExt.initialOffset = camObject.transform.position - motionTarget.position;
 
-            if (shot.panSpeedOverride > 0)
-                ext.panSpeed = shot.panSpeedOverride;
-
-            if (shot.movementType == "pan" && motionTarget != null)
-            {
-                Vector3 camToTarget = camObject.transform.position - motionTarget.position;
-                camToTarget.y = 0;
-
-                ext.panRadius = Mathf.Max(camToTarget.magnitude, 0.5f);
-                ext.initialOffset = camObject.transform.position - motionTarget.position;
-
-                Debug.Log($"🎥 VCam_{beat.beat_id} PAN radius={ext.panRadius:F2} seeded from spawn pos");
-            }
+            Debug.Log($"🎥 VCam_{beat.beat_id} PAN radius={motionExt.panRadius:F2} seeded from spawn pos");
         }
 
         cam.Lens.FieldOfView = shot.fov;
