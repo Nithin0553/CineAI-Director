@@ -40,16 +40,16 @@ class CinematicKnowledgeBase:
         self.templates: Dict[str, ShotTemplate] = {
             "aerial_object_orbit": ShotTemplate(
                 template_id="aerial_object_orbit",
-                description="A wide aerial orbit used to establish an important object or location.",
+                description="A wide establishing orbit used to introduce an important object or location.",
                 shot_type="wide_shot",
                 camera_movement="orbit",
-                fov=55.0,
-                offset=None,
-                position=Vector3(0.0, 7.0, 9.0),
+                fov=50.0,
+                offset=Vector3(0.0, 4.0, -8.0),
+                position=Vector3(0.0, 0.0, 0.0),
                 rotation=Rotation(0.0, 0.0, 0.0),
-                force_world_position=True,
-                movement_speed=8.0,
-                movement_radius=9.0,
+                force_world_position=False,
+                movement_speed=5.0,
+                movement_radius=7.0,
             ),
 
             "feet_follow_detail": ShotTemplate(
