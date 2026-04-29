@@ -40,10 +40,13 @@ def interactive_story_input() -> str:
     print("Press ENTER twice when finished.\n")
 
     lines = []
+
     while True:
         line = input()
+
         if line.strip() == "":
             break
+
         lines.append(line)
 
     story = "\n".join(lines).strip()
@@ -56,23 +59,46 @@ def interactive_story_input() -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="CineAI Director Brain prototype")
+
     parser.add_argument(
         "--context",
         type=str,
         default=str(DEFAULT_CONTEXT_PATH),
         help="Path to scene context JSON file.",
     )
+
     parser.add_argument(
         "--story",
         type=str,
         default=None,
         help="Free-form story/script idea. If omitted, interactive input is used.",
     )
+
     parser.add_argument(
         "--name",
         type=str,
         default="generated_scene",
         help="Output beat script file name without .json.",
+    )
+
+    llm_group = parser.add_mutually_exclusive_group()
+
+    llm_group.add_argument(
+        "--mock-llm",
+        action="store_true",
+        help="Use deterministic mock LLM planner. This is the default.",
+    )
+
+    llm_group.add_argument(
+        "--use-real-llm",
+        action="store_true",
+        help="Use real LLM planner. This will work after llm_director.py is connected to an LLM provider.",
+    )
+
+    parser.add_argument(
+        "--print-prompt",
+        action="store_true",
+        help="Print the generated director prompt for debugging.",
     )
 
     args = parser.parse_args()
@@ -82,9 +108,22 @@ def main() -> None:
 
     story = args.story if args.story else interactive_story_input()
 
-    brain = LocalDirectorBrain()
-    universal_script = brain.generate(scene_context=scene_context, story=story)
+    use_mock_llm = not args.use_real_llm
 
+    brain = LocalDirectorBrain(use_mock_llm=use_mock_llm)
+
+    if args.print_prompt:
+        prompt = brain.director_agent.prompt_builder.build_prompt(
+            story=story,
+            scene_context=scene_context,
+            cinematic_templates=brain.director_agent._templates_for_prompt(),
+        )
+
+        print("\n===== GENERATED LLM PROMPT =====\n")
+        print(prompt)
+        print("\n===== END PROMPT =====\n")
+
+    universal_script = brain.generate(scene_context=scene_context, story=story)
     universal_data = universal_script.to_dict()
 
     try:
@@ -101,6 +140,12 @@ def main() -> None:
     save_json(UNITY_BEATS_DIR / f"{args.name}.json", legacy_data)
 
     print("\nGeneration complete.")
+
+    if use_mock_llm:
+        print("Planner mode: mock LLM")
+    else:
+        print("Planner mode: real LLM")
+
     print(f"Unity beat script created at: Assets/Resources/BeatScripts/{args.name}.json")
     print("In Unity, set CutsceneCompiler.beatScriptName to:")
     print(args.name)
