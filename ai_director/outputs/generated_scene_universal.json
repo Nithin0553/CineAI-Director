@@ -17,7 +17,7 @@
       "purpose": "Establish Setting",
       "speaker": "",
       "dialogue": "",
-      "action": "Walk toward the mysterious rock",
+      "action": "Walk toward the rock",
       "emotion": "neutral",
       "intent": "establish",
       "duration": 3.0,
@@ -54,11 +54,11 @@
     },
     {
       "beat_id": 2,
-      "purpose": "Approach the Rock",
+      "purpose": "Show UNCLE_BEN's movement detail.",
       "speaker": "UNCLE_BEN",
       "dialogue": "",
-      "action": "Stop in front of the rock and look confused",
-      "emotion": "confused",
+      "action": "A low detail shot follows UNCLE_BEN's movement.",
+      "emotion": "focused",
       "intent": "approach",
       "duration": 4.0,
       "character": {
@@ -107,16 +107,119 @@
         "force_world_position": false
       },
       "transition": {
-        "type": "fade",
-        "duration": 1.0
+        "type": "cut",
+        "duration": 0.0
       }
     },
     {
       "beat_id": 3,
-      "purpose": "Reveal the Rock's Presence",
+      "purpose": "Approach the Rock",
       "speaker": "UNCLE_BEN",
       "dialogue": "",
-      "action": "Look at the rock with a confused expression",
+      "action": "Walk toward the rock",
+      "emotion": "mysterious",
+      "intent": "approach",
+      "duration": 4.0,
+      "character": {
+        "name": "UNCLE_BEN",
+        "animation": "Walk",
+        "start_position": {
+          "x": -5.686945,
+          "y": -0.174587,
+          "z": 4.0
+        },
+        "end_position": {
+          "x": -5.686945,
+          "y": -0.174587,
+          "z": -1.0
+        },
+        "facing_y": 180.0,
+        "move_speed": 0.8
+      },
+      "camera": {
+        "name": "VCam_3",
+        "shot_type": "medium_shot",
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "rotation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "fov": 55.0,
+        "look_at": "UNCLE_BEN",
+        "follow": "UNCLE_BEN",
+        "offset": {
+          "x": 0.0,
+          "y": 1.8,
+          "z": 4.5
+        },
+        "movement": {
+          "type": "follow",
+          "target": "UNCLE_BEN",
+          "speed": 0.8,
+          "radius": null
+        },
+        "force_world_position": false
+      },
+      "transition": {
+        "type": "cut",
+        "duration": 0.0
+      }
+    },
+    {
+      "beat_id": 4,
+      "purpose": "Reveal the Rock",
+      "speaker": "",
+      "dialogue": "",
+      "action": "Stop in front of the rock and look confused",
+      "emotion": "confused",
+      "intent": "reveal",
+      "duration": 3.0,
+      "character": null,
+      "camera": {
+        "name": "VCam_4",
+        "shot_type": "over_the_shoulder",
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "rotation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "fov": 60.0,
+        "look_at": "ROCK",
+        "follow": null,
+        "offset": {
+          "x": 0.55,
+          "y": 1.85,
+          "z": -2.2
+        },
+        "movement": {
+          "type": "pan",
+          "target": "ROCK",
+          "speed": 8.0,
+          "radius": 1.5
+        },
+        "force_world_position": false
+      },
+      "transition": {
+        "type": "cut",
+        "duration": 0.0
+      }
+    },
+    {
+      "beat_id": 5,
+      "purpose": "Reaction and Question",
+      "speaker": "UNCLE_BEN",
+      "dialogue": "",
+      "action": "Think: Strange, where did this rock come from?",
       "emotion": "confused",
       "intent": "react",
       "duration": 2.0,
@@ -133,7 +236,7 @@
         "move_speed": null
       },
       "camera": {
-        "name": "VCam_3",
+        "name": "VCam_5",
         "shot_type": "close_up",
         "position": {
           "x": 0.0,
@@ -164,61 +267,6 @@
       "transition": {
         "type": "cut",
         "duration": 0.0
-      }
-    },
-    {
-      "beat_id": 4,
-      "purpose": "React to the Rock",
-      "speaker": "UNCLE_BEN",
-      "dialogue": "Strange, where did this rock come from?",
-      "action": "Think: Strange, where did this rock come from?",
-      "emotion": "confused",
-      "intent": "question",
-      "duration": 3.0,
-      "character": {
-        "name": "UNCLE_BEN",
-        "animation": "Reaction",
-        "start_position": {
-          "x": -5.686945,
-          "y": -0.174587,
-          "z": -1.0
-        },
-        "end_position": null,
-        "facing_y": 180.0,
-        "move_speed": null
-      },
-      "camera": {
-        "name": "VCam_4",
-        "shot_type": "close_up",
-        "position": {
-          "x": 0.0,
-          "y": 0.0,
-          "z": 0.0
-        },
-        "rotation": {
-          "x": 0.0,
-          "y": 0.0,
-          "z": 0.0
-        },
-        "fov": 30.0,
-        "look_at": "UNCLE_BEN_HEAD",
-        "follow": "UNCLE_BEN_HEAD",
-        "offset": {
-          "x": 0.25,
-          "y": 0.12,
-          "z": -2.4
-        },
-        "movement": {
-          "type": "follow",
-          "target": "UNCLE_BEN_HEAD",
-          "speed": null,
-          "radius": null
-        },
-        "force_world_position": false
-      },
-      "transition": {
-        "type": "fade",
-        "duration": 1.0
       }
     }
   ]

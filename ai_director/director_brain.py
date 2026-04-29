@@ -17,6 +17,7 @@ from schema import (
     UniversalBeatScript,
     Vector3,
 )
+from semantic_normalizer import SemanticNormalizer
 
 
 @dataclass
@@ -84,7 +85,7 @@ class StoryUnderstandingAgent:
             main_object=main_object,
             location=location,
             dialogue=dialogue,
-            emotion_arc=["mysterious", "focused", "concerned", "mysterious", "confused"],
+            emotion_arc=["neutral"],
             story_intent="llm_planned_scene",
         )
 
@@ -92,33 +93,34 @@ class StoryUnderstandingAgent:
     def _extract_dialogue_or_default(story: str) -> str:
         if '"' in story:
             parts = story.split('"')
+
             if len(parts) >= 3:
                 return parts[1].strip()
 
         if ":" in story:
             possible_line = story.split(":")[-1].strip()
+
             if len(possible_line) > 3:
                 return possible_line
 
-        return "Strange, where did this come from?"
+        return ""
 
 
 class DirectorAgent:
     """
-    Director planner.
+    Universal director planner.
 
-    It can use:
-    - mock LLM output
-    - real Ollama output
-
-    The repair layer below fixes weak LLM plans before Unity JSON is generated.
-    Unity should stay an execution layer only.
+    It builds the LLM prompt, gets a raw LLM plan, then uses SemanticNormalizer
+    to convert weak LLM output into safe cinematic categories.
     """
 
     def __init__(self, knowledge: CinematicKnowledgeBase, use_mock_llm: bool = True) -> None:
         self.knowledge = knowledge
         self.prompt_builder = DirectorPromptBuilder()
         self.llm_director = LLMDirector(use_mock=use_mock_llm)
+        self.normalizer = SemanticNormalizer(
+            available_template_ids=list(self.knowledge.templates.keys())
+        )
 
     def create_beat_plan(
             self,
@@ -162,31 +164,16 @@ class DirectorAgent:
     ) -> List[BeatPlan]:
         raw_beats = data.get("beats", [])
 
-        if not raw_beats:
-            raise ValueError("LLM plan did not contain any beats.")
-
-        repaired_raw_beats = self._repair_llm_beats(raw_beats, analysis)
+        normalized_beats = self.normalizer.normalize(
+            raw_beats=raw_beats,
+            main_character=analysis.main_character,
+            main_object=analysis.main_object,
+            fallback_dialogue=analysis.dialogue,
+        )
 
         beat_plans: List[BeatPlan] = []
 
-        for index, raw in enumerate(repaired_raw_beats, start=1):
-            template_id = str(raw.get("template_id", "")).strip()
-
-            if template_id not in self.knowledge.templates:
-                template_id = "medium_walk_approach"
-
-            target_role = str(raw.get("target_role", "character")).strip()
-            if target_role not in {"character", "object", "feet", "head", "body"}:
-                target_role = "character"
-
-            speaker = str(raw.get("speaker", "")).strip()
-
-            if speaker and speaker != analysis.main_character:
-                speaker = analysis.main_character
-
-            if target_role in {"character", "feet", "head", "body"}:
-                speaker = analysis.main_character
-
+        for index, raw in enumerate(normalized_beats, start=1):
             beat_plans.append(
                 BeatPlan(
                     beat_id=int(raw.get("beat_id", index)),
@@ -194,10 +181,10 @@ class DirectorAgent:
                     action=str(raw.get("action", "")),
                     emotion=str(raw.get("emotion", "neutral")),
                     intent=str(raw.get("intent", "observe")),
-                    speaker=speaker,
+                    speaker=str(raw.get("speaker", "")),
                     dialogue=str(raw.get("dialogue", "")),
-                    template_id=template_id,
-                    target_role=target_role,
+                    template_id=str(raw.get("template_id", "medium_walk_approach")),
+                    target_role=str(raw.get("target_role", "character")),
                     duration=float(raw.get("duration", 4.0)),
                     transition=str(raw.get("transition", "cut")),
                 )
@@ -205,179 +192,13 @@ class DirectorAgent:
 
         return beat_plans
 
-    def _repair_llm_beats(
-            self,
-            raw_beats: List[Dict[str, Any]],
-            analysis: StoryAnalysis,
-    ) -> List[Dict[str, Any]]:
-        """
-        Repairs common LLM mistakes:
-        - missing speaker for character shots
-        - no feet shot during approach
-        - wrong template for reaction/question
-        - object reveal using character target
-        """
-
-        repaired: List[Dict[str, Any]] = []
-        approach_count = 0
-        has_establishing = False
-        has_feet_approach = False
-        has_reaction_head = False
-
-        for index, original in enumerate(raw_beats, start=1):
-            beat = dict(original)
-
-            action = str(beat.get("action", "")).lower()
-            purpose = str(beat.get("purpose", "")).lower()
-            intent = str(beat.get("intent", "")).lower()
-            emotion = str(beat.get("emotion", "neutral")).lower()
-            dialogue = str(beat.get("dialogue", ""))
-            combined = f"{action} {purpose} {intent} {emotion}"
-
-            template_id = str(beat.get("template_id", "")).strip()
-            target_role = str(beat.get("target_role", "")).strip()
-            speaker = str(beat.get("speaker", "")).strip()
-
-            if template_id not in self.knowledge.templates:
-                template_id = "medium_walk_approach"
-
-            if target_role not in {"character", "object", "feet", "head", "body"}:
-                target_role = "character"
-
-            is_establish = (
-                    "establish" in combined
-                    or "wide" in combined
-                    or "aerial" in combined
-                    or "reveal location" in combined
-            )
-
-            is_approach = (
-                    "approach" in combined
-                    or "walk" in combined
-                    or "walking" in combined
-                    or "move toward" in combined
-                    or "moves toward" in combined
-                    or "toward" in combined
-                    or "stop" in combined
-                    or "stops" in combined
-            )
-
-            is_reveal = (
-                    "reveal" in combined
-                    or "look at rock" in combined
-                    or "looks at rock" in combined
-                    or "object" in combined and "reveal" in combined
-            )
-
-            is_reaction = (
-                    "react" in combined
-                    or "reaction" in combined
-                    or "confused" in combined
-                    or "shocked" in combined
-                    or "think" in combined
-                    or "thinking" in combined
-                    or "question" in combined
-                    or bool(dialogue.strip())
-            )
-
-            if is_establish and not has_establishing:
-                template_id = "aerial_object_orbit"
-                target_role = "object"
-                speaker = ""
-                intent = "establish"
-                has_establishing = True
-
-            elif is_approach:
-                approach_count += 1
-                speaker = analysis.main_character
-                intent = "approach"
-
-                if not has_feet_approach:
-                    template_id = "feet_follow_detail"
-                    target_role = "feet"
-                    has_feet_approach = True
-                else:
-                    template_id = "medium_walk_approach"
-                    target_role = "character"
-
-            elif is_reveal and not is_reaction:
-                speaker = analysis.main_character
-                template_id = "over_shoulder_reveal"
-                target_role = "object"
-                intent = "reveal"
-
-            elif is_reaction:
-                speaker = analysis.main_character
-                template_id = "face_reaction_closeup"
-                target_role = "head"
-                intent = "question" if "question" in combined or dialogue.strip() else "react"
-                has_reaction_head = True
-
-            elif target_role in {"character", "feet", "head", "body"}:
-                speaker = analysis.main_character
-
-            beat["beat_id"] = int(beat.get("beat_id", index))
-            beat["template_id"] = template_id
-            beat["target_role"] = target_role
-            beat["speaker"] = speaker
-            beat["intent"] = intent if intent else str(beat.get("intent", "observe"))
-            beat["emotion"] = emotion if emotion else "neutral"
-
-            if not beat.get("duration"):
-                beat["duration"] = 4.0
-
-            if not beat.get("transition"):
-                beat["transition"] = "cut"
-
-            repaired.append(beat)
-
-        if not has_feet_approach:
-            repaired.insert(
-                1 if repaired else 0,
-                {
-                    "beat_id": 2,
-                    "purpose": "Show the character approaching through a walking detail shot.",
-                    "action": f"Low detail shot follows {analysis.main_character}'s feet as the character walks forward.",
-                    "emotion": "focused",
-                    "intent": "approach",
-                    "speaker": analysis.main_character,
-                    "dialogue": "",
-                    "template_id": "feet_follow_detail",
-                    "target_role": "feet",
-                    "duration": 4.0,
-                    "transition": "cut",
-                },
-            )
-
-        if not has_reaction_head:
-            repaired.append(
-                {
-                    "beat_id": len(repaired) + 1,
-                    "purpose": "Show the character's emotional reaction.",
-                    "action": f"Close-up on {analysis.main_character}'s face as the character reacts.",
-                    "emotion": "confused",
-                    "intent": "question",
-                    "speaker": analysis.main_character,
-                    "dialogue": analysis.dialogue,
-                    "template_id": "face_reaction_closeup",
-                    "target_role": "head",
-                    "duration": 4.0,
-                    "transition": "fade",
-                }
-            )
-
-        for new_id, beat in enumerate(repaired, start=1):
-            beat["beat_id"] = new_id
-
-        return repaired
-
 
 class BlockingAgent:
     """
-    Temporary blocking planner.
+    Temporary generic blocking planner.
 
-    This still uses simple scene_context positions.
-    Later, this should also come from LLM output or a scene-aware planner.
+    It uses scene_context default points.
+    This is still generic, but later it should be replaced by scene-aware LLM blocking.
     """
 
     def create_blocking(
@@ -415,7 +236,7 @@ class BlockingAgent:
                 move_speed=0.8,
             )
 
-        if beat_plan.intent in {"reveal", "observe"}:
+        if beat_plan.intent in {"reveal", "observe", "insert"}:
             return BlockingPlan(
                 character_name=c,
                 animation="Idle",
@@ -595,9 +416,9 @@ class UnitySafetyValidatorAgent:
 
             if beat.camera.look_at:
                 is_anchor_target = (
-                        beat.camera.look_at.endswith("_FEET") or
-                        beat.camera.look_at.endswith("_HEAD") or
-                        beat.camera.look_at.endswith("_BODY")
+                        beat.camera.look_at.endswith("_FEET")
+                        or beat.camera.look_at.endswith("_HEAD")
+                        or beat.camera.look_at.endswith("_BODY")
                 )
 
                 if not is_anchor_target:
@@ -606,9 +427,9 @@ class UnitySafetyValidatorAgent:
 
             if beat.camera.follow:
                 is_anchor_target = (
-                        beat.camera.follow.endswith("_FEET") or
-                        beat.camera.follow.endswith("_HEAD") or
-                        beat.camera.follow.endswith("_BODY")
+                        beat.camera.follow.endswith("_FEET")
+                        or beat.camera.follow.endswith("_HEAD")
+                        or beat.camera.follow.endswith("_BODY")
                 )
 
                 if not is_anchor_target:
