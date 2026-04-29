@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 VALID_TARGET_ROLES = {"character", "object", "feet", "head", "body"}
@@ -63,11 +63,8 @@ class SemanticNormalizer:
     """
     Universal LLM-output normalizer.
 
-    This class is intentionally NOT tied to one game, one scene, or one story.
-    It uses generic cinematic categories and scene_context roles.
-
-    Unity should only execute JSON.
-    This layer makes weak LLM output structurally safe before JSON export.
+    This is not tied to one game, one scene, or one story.
+    It converts weak LLM output into generic cinematic categories.
     """
 
     def __init__(self, available_template_ids: List[str]) -> None:
@@ -128,31 +125,30 @@ class SemanticNormalizer:
                 ),
             )
 
-        if not has_movement_detail and self._story_has_character_motion(raw_beats):
-            insert_index = 1 if normalized else 0
-            normalized.insert(
-                insert_index,
-                self._make_beat(
-                    beat_id=insert_index + 1,
-                    semantic_type="movement_detail",
-                    main_character=main_character,
-                    main_object=main_object,
-                    fallback_dialogue="",
-                ),
-            )
+        if self._story_has_character_motion(raw_beats):
+            if not has_movement_detail:
+                normalized.insert(
+                    1 if normalized else 0,
+                    self._make_beat(
+                        beat_id=2,
+                        semantic_type="movement_detail",
+                        main_character=main_character,
+                        main_object=main_object,
+                        fallback_dialogue="",
+                    ),
+                )
 
-        if not has_character_movement and self._story_has_character_motion(raw_beats):
-            insert_index = min(2, len(normalized))
-            normalized.insert(
-                insert_index,
-                self._make_beat(
-                    beat_id=insert_index + 1,
-                    semantic_type="character_movement",
-                    main_character=main_character,
-                    main_object=main_object,
-                    fallback_dialogue="",
-                ),
-            )
+            if not has_character_movement:
+                normalized.insert(
+                    min(2, len(normalized)),
+                    self._make_beat(
+                        beat_id=3,
+                        semantic_type="character_movement",
+                        main_character=main_character,
+                        main_object=main_object,
+                        fallback_dialogue="",
+                    ),
+                )
 
         if not has_reaction:
             normalized.append(
@@ -180,6 +176,7 @@ class SemanticNormalizer:
             fallback_dialogue: str,
     ) -> NormalizedBeat:
         template_id = str(raw.get("template_id", "")).strip()
+
         if template_id not in self.available_template_ids:
             template_id = INTENT_TO_TEMPLATE.get(semantic_type, "medium_walk_approach")
 
@@ -197,12 +194,16 @@ class SemanticNormalizer:
         )
 
         speaker = str(raw.get("speaker", "")).strip()
+
         if target_role in {"character", "feet", "head", "body"}:
+            speaker = main_character
+        elif semantic_type == "object_reveal":
             speaker = main_character
         elif speaker and speaker != main_character:
             speaker = main_character
 
         dialogue = str(raw.get("dialogue", "")).strip()
+
         if semantic_type == "dialogue_or_thought" and not dialogue:
             dialogue = fallback_dialogue
 
@@ -231,6 +232,7 @@ class SemanticNormalizer:
             fallback_dialogue: str,
     ) -> NormalizedBeat:
         template_id = INTENT_TO_TEMPLATE.get(semantic_type, "medium_walk_approach")
+
         if template_id not in self.available_template_ids:
             template_id = next(iter(self.available_template_ids))
 
@@ -238,7 +240,10 @@ class SemanticNormalizer:
         intent = self._intent_for_semantic_type(semantic_type, "")
 
         speaker = ""
+
         if target_role in {"character", "feet", "head", "body"}:
+            speaker = main_character
+        elif semantic_type == "object_reveal":
             speaker = main_character
 
         dialogue = fallback_dialogue if semantic_type == "dialogue_or_thought" else ""
@@ -290,7 +295,7 @@ class SemanticNormalizer:
         if proposed_template == "face_reaction_closeup":
             return "dialogue_or_thought" if dialogue else "character_reaction"
 
-        if proposed_intent in {"establish"}:
+        if proposed_intent == "establish":
             return "establish_scene"
 
         if proposed_intent in {"approach", "exit"}:
@@ -299,10 +304,10 @@ class SemanticNormalizer:
         if proposed_intent in {"reveal", "observe"} and proposed_target_role == "object":
             return "object_reveal"
 
-        if proposed_intent in {"insert"}:
+        if proposed_intent == "insert":
             return "object_insert"
 
-        if proposed_intent in {"react"}:
+        if proposed_intent == "react":
             return "character_reaction"
 
         if proposed_intent in {"question", "dialogue"} or dialogue:
@@ -326,12 +331,15 @@ class SemanticNormalizer:
         proposed = proposed.lower()
 
         if proposed in VALID_TARGET_ROLES:
-            if semantic_type in {"movement_detail"}:
+            if semantic_type == "movement_detail":
                 return "feet"
+
             if semantic_type in {"character_reaction", "dialogue_or_thought"}:
                 return "head"
+
             if semantic_type in {"establish_scene", "object_reveal", "object_insert"}:
                 return "object"
+
             return proposed
 
         mapping = {
@@ -352,6 +360,7 @@ class SemanticNormalizer:
         if proposed in VALID_INTENTS:
             if semantic_type == "movement_detail":
                 return "approach"
+
             return proposed
 
         mapping = {
@@ -369,10 +378,12 @@ class SemanticNormalizer:
     def _story_has_character_motion(self, raw_beats: List[Dict[str, Any]]) -> bool:
         for beat in raw_beats:
             semantic_type = self._semantic_type(beat)
+
             if semantic_type in {"movement_detail", "character_movement"}:
                 return True
 
             text = f"{beat.get('purpose', '')} {beat.get('action', '')} {beat.get('intent', '')}".lower()
+
             if self._contains_any(text, {"walk", "move", "run", "enter", "exit", "approach", "stop"}):
                 return True
 
@@ -452,7 +463,7 @@ class SemanticNormalizer:
             "dialogue_or_thought",
         ]
 
-        beats = [
+        return [
             self._make_beat(
                 beat_id=index,
                 semantic_type=semantic_type,
@@ -462,5 +473,3 @@ class SemanticNormalizer:
             ).to_dict()
             for index, semantic_type in enumerate(semantic_sequence, start=1)
         ]
-
-        return beats

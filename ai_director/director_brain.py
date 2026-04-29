@@ -286,8 +286,12 @@ class CinematographerAgent:
         c = analysis.main_character
         o = analysis.main_object
 
-        look_at = self._resolve_target_name(beat_plan.target_role, c, o)
-        follow = self._resolve_follow_name(beat_plan.target_role, c, o)
+        if beat_plan.template_id == "over_shoulder_reveal":
+            look_at = o
+            follow = c
+        else:
+            look_at = self._resolve_target_name(beat_plan.target_role, c, o)
+            follow = self._resolve_follow_name(beat_plan.target_role, c, o)
 
         position = template.position
         rotation = template.rotation
