@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from math import atan2, degrees, sqrt
 from typing import Any, Dict, List, Optional
 
+from cinematic_knowledge import CinematicKnowledgeBase, ShotTemplate
 from schema import (
     Beat,
     CameraInstruction,
@@ -35,8 +36,10 @@ class BeatPlan:
     intent: str
     speaker: str
     dialogue: str
-    shot_type: str
-    camera_movement: str
+
+    template_id: str
+    target_role: str
+
     duration: float
     transition: str
 
@@ -102,6 +105,14 @@ class StoryUnderstandingAgent:
 
 
 class DirectorAgent:
+    """
+    Temporary director planner.
+
+    This is still not the final LLM brain.
+    But now it outputs template IDs instead of hardcoding every camera value here.
+    Later, an LLM can generate these BeatPlans directly.
+    """
+
     def create_beat_plan(self, analysis: StoryAnalysis) -> List[BeatPlan]:
         c = analysis.main_character
         o = analysis.main_object
@@ -115,21 +126,21 @@ class DirectorAgent:
                 intent="establish",
                 speaker="",
                 dialogue="",
-                shot_type="wide_shot",
-                camera_movement="orbit",
+                template_id="aerial_object_orbit",
+                target_role="object",
                 duration=5.0,
                 transition="cut",
             ),
             BeatPlan(
                 beat_id=2,
                 purpose="Show the character entering through movement detail.",
-                action=f"Low close shot follows {c}'s feet as he walks toward {o}.",
+                action=f"Low detail shot follows {c}'s feet as he walks toward {o}.",
                 emotion="focused",
                 intent="approach",
                 speaker=c,
                 dialogue="",
-                shot_type="close_up",
-                camera_movement="follow",
+                template_id="feet_follow_detail",
+                target_role="feet",
                 duration=5.0,
                 transition="cut",
             ),
@@ -141,8 +152,8 @@ class DirectorAgent:
                 intent="approach",
                 speaker=c,
                 dialogue="",
-                shot_type="medium_shot",
-                camera_movement="follow",
+                template_id="medium_walk_approach",
+                target_role="character",
                 duration=6.0,
                 transition="cut",
             ),
@@ -154,8 +165,8 @@ class DirectorAgent:
                 intent="reveal",
                 speaker=c,
                 dialogue="",
-                shot_type="over_the_shoulder",
-                camera_movement="pan",
+                template_id="over_shoulder_reveal",
+                target_role="object",
                 duration=5.0,
                 transition="cut",
             ),
@@ -167,8 +178,8 @@ class DirectorAgent:
                 intent="question",
                 speaker=c,
                 dialogue=analysis.dialogue,
-                shot_type="close_up",
-                camera_movement="follow",
+                template_id="face_reaction_closeup",
+                target_role="head",
                 duration=5.0,
                 transition="fade",
             ),
@@ -239,6 +250,9 @@ class BlockingAgent:
 
 
 class CinematographerAgent:
+    def __init__(self) -> None:
+        self.knowledge = CinematicKnowledgeBase()
+
     def create_camera_plan(
             self,
             beat_plan: BeatPlan,
@@ -246,128 +260,86 @@ class CinematographerAgent:
             analysis: StoryAnalysis,
             scene_context: Dict[str, Any],
     ) -> CameraPlan:
+        template = self.knowledge.get(beat_plan.template_id)
+
         c = analysis.main_character
         o = analysis.main_object
 
-        object_pos = self._vec(scene_context.get("default_object_position", {"x": -5.0, "y": 0.0, "z": -3.0}))
+        look_at = self._resolve_target_name(beat_plan.target_role, c, o)
+        follow = self._resolve_follow_name(beat_plan.target_role, c, o)
 
-        if beat_plan.beat_id == 1:
-            cam_pos = Vector3(object_pos.x, object_pos.y + 7.0, object_pos.z + 9.0)
-            rotation = self._look_at_rotation(cam_pos, object_pos)
+        position = template.position
+        rotation = template.rotation
 
-            return CameraPlan(
-                name="VCam_1",
-                shot_type="wide_shot",
-                position=cam_pos,
-                rotation=rotation,
-                fov=55.0,
-                look_at=o,
-                follow=None,
-                offset=None,
-                movement=CameraMovementInstruction(
-                    type="orbit",
-                    target=o,
-                    speed=8.0,
-                    radius=9.0,
-                ),
-                force_world_position=True,
-            )
+        if template.force_world_position:
+            object_pos = self._vec(scene_context.get("default_object_position", {"x": -5.0, "y": 0.0, "z": -3.0}))
+            position = Vector3(
+                object_pos.x + template.position.x,
+                object_pos.y + template.position.y,
+                object_pos.z + template.position.z,
+                )
+            rotation = self._look_at_rotation(position, object_pos)
 
-        if beat_plan.beat_id == 2:
-            return CameraPlan(
-                name="VCam_2",
-                shot_type="close_up",
-                position=Vector3(0.0, 0.0, 0.0),
-                rotation=Rotation(0.0, 0.0, 0.0),
-                fov=45.0,
-                look_at=f"{c}_FEET",
-                follow=c,
-                offset=Vector3(0.25, 0.45, -2.0),
-                movement=CameraMovementInstruction(
-                    type="follow",
-                    target=c,
-                    speed=1.0,
-                    radius=None,
-                ),
-                force_world_position=False,
-            )
+        movement_target = follow or look_at
 
-        if beat_plan.beat_id == 3:
-            return CameraPlan(
-                name="VCam_3",
-                shot_type="medium_shot",
-                position=Vector3(0.0, 0.0, 0.0),
-                rotation=Rotation(0.0, 0.0, 0.0),
-                fov=55.0,
-                look_at=c,
-                follow=c,
-                offset=Vector3(0.0, 1.8, 4.5),
-                movement=CameraMovementInstruction(
-                    type="follow",
-                    target=c,
-                    speed=0.8,
-                    radius=None,
-                ),
-                force_world_position=False,
-            )
-
-        if beat_plan.beat_id == 4:
-            return CameraPlan(
-                name="VCam_4",
-                shot_type="over_the_shoulder",
-                position=Vector3(0.0, 0.0, 0.0),
-                rotation=Rotation(0.0, 0.0, 0.0),
-                fov=60.0,
-                look_at=o,
-                follow=c,
-                offset=Vector3(0.55, 1.85, -2.2),
-                movement=CameraMovementInstruction(
-                    type="pan",
-                    target=o,
-                    speed=8.0,
-                    radius=1.5,
-                ),
-                force_world_position=False,
-            )
-
-        if beat_plan.beat_id == 5:
-            head_target = f"{c}_HEAD"
-
-            return CameraPlan(
-                name="VCam_5",
-                shot_type="close_up",
-                position=Vector3(0.0, 0.0, 0.0),
-                rotation=Rotation(0.0, 0.0, 0.0),
-                fov=28.0,
-                look_at=head_target,
-                follow=head_target,
-                offset=Vector3(0.0, 0.15, -1.2),
-                movement=CameraMovementInstruction(
-                    type="follow",
-                    target=head_target,
-                    speed=None,
-                    radius=None,
-                ),
-                force_world_position=False,
-            )
-
-        return CameraPlan(
-            name=f"VCam_{beat_plan.beat_id}",
-            shot_type=beat_plan.shot_type,
-            position=Vector3(0.0, 0.0, 0.0),
-            rotation=Rotation(0.0, 0.0, 0.0),
-            fov=50.0,
-            look_at=c,
-            follow=c,
-            offset=Vector3(0.0, 1.7, -4.0),
-            movement=CameraMovementInstruction(
-                type=beat_plan.camera_movement,
-                target=c,
-                speed=None,
-                radius=None,
-            ),
-            force_world_position=False,
+        return self._camera_from_template(
+            beat_id=beat_plan.beat_id,
+            template=template,
+            look_at=look_at,
+            follow=follow,
+            movement_target=movement_target,
+            position=position,
+            rotation=rotation,
         )
+
+    def _camera_from_template(
+            self,
+            beat_id: int,
+            template: ShotTemplate,
+            look_at: Optional[str],
+            follow: Optional[str],
+            movement_target: Optional[str],
+            position: Vector3,
+            rotation: Rotation,
+    ) -> CameraPlan:
+        return CameraPlan(
+            name=f"VCam_{beat_id}",
+            shot_type=template.shot_type,
+            position=position,
+            rotation=rotation,
+            fov=template.fov,
+            look_at=look_at,
+            follow=follow,
+            offset=template.offset,
+            movement=self.knowledge.movement_for(template, movement_target),
+            force_world_position=template.force_world_position,
+        )
+
+    @staticmethod
+    def _resolve_target_name(target_role: str, character: str, obj: str) -> str:
+        if target_role == "object":
+            return obj
+
+        if target_role == "feet":
+            return f"{character}_FEET"
+
+        if target_role == "head":
+            return f"{character}_HEAD"
+
+        return character
+
+    @staticmethod
+    def _resolve_follow_name(target_role: str, character: str, obj: str) -> Optional[str]:
+        if target_role == "object":
+            return None
+
+        if target_role == "feet":
+            return f"{character}_FEET"
+
+        if target_role == "head":
+            return f"{character}_HEAD"
+
+        return character
 
     @staticmethod
     def _vec(data: Dict[str, Any]) -> Vector3:
@@ -416,22 +388,24 @@ class UnitySafetyValidatorAgent:
                 raise ValueError(f"Invalid speaker name in beat {beat.beat_id}: {beat.speaker}")
 
             if beat.camera.look_at:
-                is_bone_target = (
+                is_anchor_target = (
                         beat.camera.look_at.endswith("_FEET") or
-                        beat.camera.look_at.endswith("_HEAD")
+                        beat.camera.look_at.endswith("_HEAD") or
+                        beat.camera.look_at.endswith("_BODY")
                 )
 
-                if not is_bone_target:
+                if not is_anchor_target:
                     if beat.camera.look_at not in allowed_characters and beat.camera.look_at not in allowed_objects:
                         raise ValueError(f"Invalid look_at target in beat {beat.beat_id}: {beat.camera.look_at}")
 
             if beat.camera.follow:
-                is_bone_target = (
+                is_anchor_target = (
                         beat.camera.follow.endswith("_FEET") or
-                        beat.camera.follow.endswith("_HEAD")
+                        beat.camera.follow.endswith("_HEAD") or
+                        beat.camera.follow.endswith("_BODY")
                 )
 
-                if not is_bone_target:
+                if not is_anchor_target:
                     if beat.camera.follow not in allowed_characters and beat.camera.follow not in allowed_objects:
                         raise ValueError(f"Invalid follow target in beat {beat.beat_id}: {beat.camera.follow}")
 

@@ -57,7 +57,7 @@
       "purpose": "Show the character entering through movement detail.",
       "speaker": "UNCLE_BEN",
       "dialogue": "",
-      "action": "Low close shot follows UNCLE_BEN's feet as he walks toward ROCK.",
+      "action": "Low detail shot follows UNCLE_BEN's feet as he walks toward ROCK.",
       "emotion": "focused",
       "intent": "approach",
       "duration": 5.0,
@@ -90,17 +90,17 @@
           "y": 0.0,
           "z": 0.0
         },
-        "fov": 45.0,
+        "fov": 42.0,
         "look_at": "UNCLE_BEN_FEET",
-        "follow": "UNCLE_BEN",
+        "follow": "UNCLE_BEN_FEET",
         "offset": {
-          "x": 0.25,
-          "y": 0.45,
-          "z": -2.0
+          "x": 0.0,
+          "y": 0.25,
+          "z": -2.4
         },
         "movement": {
           "type": "follow",
-          "target": "UNCLE_BEN",
+          "target": "UNCLE_BEN_FEET",
           "speed": 1.0,
           "radius": null
         },
@@ -206,7 +206,7 @@
         },
         "fov": 60.0,
         "look_at": "ROCK",
-        "follow": "UNCLE_BEN",
+        "follow": null,
         "offset": {
           "x": 0.55,
           "y": 1.85,
@@ -259,13 +259,13 @@
           "y": 0.0,
           "z": 0.0
         },
-        "fov": 28.0,
+        "fov": 30.0,
         "look_at": "UNCLE_BEN_HEAD",
         "follow": "UNCLE_BEN_HEAD",
         "offset": {
-          "x": 0.0,
-          "y": 0.15,
-          "z": -1.2
+          "x": 0.25,
+          "y": 0.12,
+          "z": -2.4
         },
         "movement": {
           "type": "follow",

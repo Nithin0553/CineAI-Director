@@ -225,8 +225,22 @@ public class CutsceneCompiler : MonoBehaviour
         }
         else if (shot.followTarget != null)
         {
-            camObject.transform.position = shot.followTarget.position + shot.offset;
-            Debug.Log($"📷 VCam_{beat.beat_id} placed at WORLD offset {shot.offset} from {shot.followTarget.name}");
+            bool isVirtualAnchor = IsVirtualAnchor(shot.followTarget);
+
+            if (isVirtualAnchor)
+            {
+                camObject.transform.position =
+                    shot.followTarget.position + shot.followTarget.rotation * shot.offset;
+
+                Debug.Log($"📷 VCam_{beat.beat_id} placed at ANCHOR LOCAL offset {shot.offset} from {shot.followTarget.name}");
+            }
+            else
+            {
+                camObject.transform.position =
+                    shot.followTarget.position + shot.offset;
+
+                Debug.Log($"📷 VCam_{beat.beat_id} placed at WORLD offset {shot.offset} from {shot.followTarget.name}");
+            }
         }
 
         if (beat.use_exact_camera_rotation)
@@ -260,13 +274,22 @@ public class CutsceneCompiler : MonoBehaviour
         {
             if (shot.followTarget != null)
             {
+                bool isVirtualAnchor = IsVirtualAnchor(shot.followTarget);
+
                 var ext = camObject.AddComponent<CinemachineMotionExtension>();
                 ext.target = shot.followTarget;
                 ext.lookTarget = shot.lookTarget;
-                ext.initialOffset = shot.offset;
+                ext.initialOffset = isVirtualAnchor
+                    ? shot.followTarget.rotation * shot.offset
+                    : shot.offset;
+
                 ext.motionType = CinemachineMotionExtension.MotionType.Follow;
 
-                Debug.Log($"🎥 VCam_{beat.beat_id} using MotionExtension FOLLOW with world offset {shot.offset}");
+                Debug.Log(
+                    isVirtualAnchor
+                        ? $"🎥 VCam_{beat.beat_id} using MotionExtension FOLLOW with ANCHOR LOCAL offset {shot.offset}"
+                        : $"🎥 VCam_{beat.beat_id} using MotionExtension FOLLOW with WORLD offset {shot.offset}"
+                );
             }
             else if (shot.lookTarget != null)
             {
@@ -302,8 +325,12 @@ public class CutsceneCompiler : MonoBehaviour
         }
         else
         {
+            bool isVirtualAnchor = motionTarget != null && IsVirtualAnchor(motionTarget);
+
             motionExt.useWorldAnchor = false;
-            motionExt.initialOffset = shot.offset;
+            motionExt.initialOffset = isVirtualAnchor
+                ? motionTarget.rotation * shot.offset
+                : shot.offset;
         }
 
         motionExt.motionType = MapMotionType(shot.movementType);
@@ -333,6 +360,11 @@ public class CutsceneCompiler : MonoBehaviour
 
         cam.Lens.FieldOfView = shot.fov;
         return cam;
+    }
+
+    private bool IsVirtualAnchor(Transform target)
+    {
+        return target != null && target.name.Contains("_ANCHOR");
     }
 
     private void SetupOrbitMotion(CinemachineMotionExtension ext, Beat beat, PlannedShot shot)
