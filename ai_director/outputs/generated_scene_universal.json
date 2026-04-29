@@ -14,13 +14,13 @@
   "beats": [
     {
       "beat_id": 1,
-      "purpose": "Establish the mysterious object in the location.",
+      "purpose": "Establish Setting",
       "speaker": "",
       "dialogue": "",
-      "action": "A wide aerial orbit reveals ROCK.",
-      "emotion": "mysterious",
+      "action": "Walk Toward Rock",
+      "emotion": "neutral",
       "intent": "establish",
-      "duration": 5.0,
+      "duration": 2.0,
       "character": null,
       "camera": {
         "name": "VCam_1",
@@ -54,90 +54,16 @@
     },
     {
       "beat_id": 2,
-      "purpose": "Show the character approaching through movement detail.",
-      "speaker": "UNCLE_BEN",
+      "purpose": "Approach Object",
+      "speaker": "",
       "dialogue": "",
-      "action": "Low detail shot follows UNCLE_BEN's feet as the character walks forward.",
-      "emotion": "focused",
+      "action": "Stop in Front of Rock",
+      "emotion": "mysterious",
       "intent": "approach",
-      "duration": 5.0,
-      "character": {
-        "name": "UNCLE_BEN",
-        "animation": "Walk",
-        "start_position": {
-          "x": -5.686945,
-          "y": -0.174587,
-          "z": 12.0
-        },
-        "end_position": {
-          "x": -5.686945,
-          "y": -0.174587,
-          "z": 4.0
-        },
-        "facing_y": 180.0,
-        "move_speed": 1.0
-      },
+      "duration": 2.0,
+      "character": null,
       "camera": {
         "name": "VCam_2",
-        "shot_type": "close_up",
-        "position": {
-          "x": 0.0,
-          "y": 0.0,
-          "z": 0.0
-        },
-        "rotation": {
-          "x": 0.0,
-          "y": 0.0,
-          "z": 0.0
-        },
-        "fov": 42.0,
-        "look_at": "UNCLE_BEN_FEET",
-        "follow": "UNCLE_BEN_FEET",
-        "offset": {
-          "x": 0.0,
-          "y": 0.25,
-          "z": -2.4
-        },
-        "movement": {
-          "type": "follow",
-          "target": "UNCLE_BEN_FEET",
-          "speed": 1.0,
-          "radius": null
-        },
-        "force_world_position": false
-      },
-      "transition": {
-        "type": "cut",
-        "duration": 0.0
-      }
-    },
-    {
-      "beat_id": 3,
-      "purpose": "Show the character approaching the object.",
-      "speaker": "UNCLE_BEN",
-      "dialogue": "",
-      "action": "UNCLE_BEN walks toward ROCK.",
-      "emotion": "concerned",
-      "intent": "approach",
-      "duration": 6.0,
-      "character": {
-        "name": "UNCLE_BEN",
-        "animation": "Walk",
-        "start_position": {
-          "x": -5.686945,
-          "y": -0.174587,
-          "z": 4.0
-        },
-        "end_position": {
-          "x": -5.686945,
-          "y": -0.174587,
-          "z": -1.0
-        },
-        "facing_y": 180.0,
-        "move_speed": 0.8
-      },
-      "camera": {
-        "name": "VCam_3",
         "shot_type": "medium_shot",
         "position": {
           "x": 0.0,
@@ -171,83 +97,17 @@
       }
     },
     {
-      "beat_id": 4,
-      "purpose": "Reveal the object from the character's point of view.",
-      "speaker": "UNCLE_BEN",
+      "beat_id": 3,
+      "purpose": "Reveal Character's Reaction",
+      "speaker": "",
       "dialogue": "",
-      "action": "Over-the-shoulder shot reveals ROCK in front of UNCLE_BEN.",
-      "emotion": "mysterious",
-      "intent": "reveal",
-      "duration": 5.0,
-      "character": {
-        "name": "UNCLE_BEN",
-        "animation": "Idle",
-        "start_position": {
-          "x": -5.686945,
-          "y": -0.174587,
-          "z": -1.0
-        },
-        "end_position": null,
-        "facing_y": 180.0,
-        "move_speed": null
-      },
-      "camera": {
-        "name": "VCam_4",
-        "shot_type": "over_the_shoulder",
-        "position": {
-          "x": 0.0,
-          "y": 0.0,
-          "z": 0.0
-        },
-        "rotation": {
-          "x": 0.0,
-          "y": 0.0,
-          "z": 0.0
-        },
-        "fov": 60.0,
-        "look_at": "ROCK",
-        "follow": null,
-        "offset": {
-          "x": 0.55,
-          "y": 1.85,
-          "z": -2.2
-        },
-        "movement": {
-          "type": "pan",
-          "target": "ROCK",
-          "speed": 8.0,
-          "radius": 1.5
-        },
-        "force_world_position": false
-      },
-      "transition": {
-        "type": "cut",
-        "duration": 0.0
-      }
-    },
-    {
-      "beat_id": 5,
-      "purpose": "Show the character's emotional reaction.",
-      "speaker": "UNCLE_BEN",
-      "dialogue": "Strange, where did this rock come from?",
-      "action": "Close-up on UNCLE_BEN's face as they react.",
+      "action": "Look Confused",
       "emotion": "confused",
-      "intent": "question",
-      "duration": 5.0,
-      "character": {
-        "name": "UNCLE_BEN",
-        "animation": "Reaction",
-        "start_position": {
-          "x": -5.686945,
-          "y": -0.174587,
-          "z": -1.0
-        },
-        "end_position": null,
-        "facing_y": 180.0,
-        "move_speed": null
-      },
+      "intent": "react",
+      "duration": 2.0,
+      "character": null,
       "camera": {
-        "name": "VCam_5",
+        "name": "VCam_3",
         "shot_type": "close_up",
         "position": {
           "x": 0.0,
@@ -276,8 +136,63 @@
         "force_world_position": false
       },
       "transition": {
-        "type": "fade",
-        "duration": 1.0
+        "type": "cut",
+        "duration": 0.0
+      }
+    },
+    {
+      "beat_id": 4,
+      "purpose": "Establish Character's Thought Process",
+      "speaker": "UNCLE_BEN",
+      "dialogue": "Strange, where did this rock come from?",
+      "action": "Think: Strange, where did this rock come from?",
+      "emotion": "confused",
+      "intent": "question",
+      "duration": 2.0,
+      "character": {
+        "name": "UNCLE_BEN",
+        "animation": "Reaction",
+        "start_position": {
+          "x": -5.686945,
+          "y": -0.174587,
+          "z": -1.0
+        },
+        "end_position": null,
+        "facing_y": 180.0,
+        "move_speed": null
+      },
+      "camera": {
+        "name": "VCam_4",
+        "shot_type": "insert_shot",
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "rotation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "fov": 36.0,
+        "look_at": "UNCLE_BEN",
+        "follow": "UNCLE_BEN",
+        "offset": {
+          "x": 0.0,
+          "y": 1.0,
+          "z": -2.2
+        },
+        "movement": {
+          "type": "static",
+          "target": "UNCLE_BEN",
+          "speed": null,
+          "radius": null
+        },
+        "force_world_position": false
+      },
+      "transition": {
+        "type": "cut",
+        "duration": 0.0
       }
     }
   ]

@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
+import urllib.error
+import urllib.request
 from typing import Any, Dict, List
 
 
@@ -8,19 +11,24 @@ class LLMDirector:
     """
     LLM adapter for AI Director planning.
 
-    Current stage:
-    - Uses a safe deterministic fallback so the project runs without API keys.
-    - Later, replace _call_llm() with OpenAI, Ollama, LM Studio, or a fine-tuned model.
+    Modes:
+    - use_mock=True: deterministic fallback, no external model required.
+    - use_mock=False: calls local Ollama server.
 
-    Expected output:
-    {
-      "scene_title": "...",
-      "beats": [...]
-    }
+    Requirements for real LLM mode:
+    1. Install Ollama.
+    2. Run:
+       ollama pull llama3.1
+    3. Make sure Ollama is running locally.
+    4. Run:
+       python ai_director/main.py --use-real-llm --story "..." --name generated_scene
     """
 
     def __init__(self, use_mock: bool = True) -> None:
         self.use_mock = use_mock
+        self.provider = os.getenv("CINEAI_LLM_PROVIDER", "ollama").lower()
+        self.model = os.getenv("CINEAI_OLLAMA_MODEL", "llama3.1")
+        self.ollama_url = os.getenv("CINEAI_OLLAMA_URL", "http://localhost:11434/api/generate")
 
     def generate_plan(self, prompt: str, scene_context: Dict[str, Any], story: str) -> Dict[str, Any]:
         if self.use_mock:
@@ -30,22 +38,59 @@ class LLMDirector:
         return self._parse_json(raw_response)
 
     def _call_llm(self, prompt: str) -> str:
-        """
-        Replace this later with a real LLM call.
+        if self.provider != "ollama":
+            raise ValueError(f"Unsupported LLM provider: {self.provider}")
 
-        Options:
-        - OpenAI API
-        - Ollama local model
-        - LM Studio local server
-        - fine-tuned HuggingFace model
-        """
-        raise NotImplementedError("Real LLM connection will be added in the next step.")
+        payload = {
+            "model": self.model,
+            "prompt": prompt,
+            "stream": False,
+            "format": "json",
+            "options": {
+                "temperature": 0.2,
+                "top_p": 0.9,
+            },
+        }
+
+        data = json.dumps(payload).encode("utf-8")
+
+        request = urllib.request.Request(
+            self.ollama_url,
+            data=data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+
+        try:
+            with urllib.request.urlopen(request, timeout=120) as response:
+                response_body = response.read().decode("utf-8")
+        except urllib.error.URLError as exc:
+            raise ConnectionError(
+                "Could not connect to Ollama. Make sure Ollama is installed and running. "
+                "Try: ollama pull llama3.1"
+            ) from exc
+
+        try:
+            response_json = json.loads(response_body)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"Ollama returned invalid wrapper JSON: {response_body}") from exc
+
+        if "response" not in response_json:
+            raise ValueError(f"Ollama response did not contain 'response': {response_json}")
+
+        return response_json["response"]
 
     def _parse_json(self, raw_response: str) -> Dict[str, Any]:
+        cleaned = raw_response.strip()
+
+        if cleaned.startswith("```"):
+            cleaned = cleaned.strip("`")
+            cleaned = cleaned.replace("json", "", 1).strip()
+
         try:
-            return json.loads(raw_response)
+            return json.loads(cleaned)
         except json.JSONDecodeError as exc:
-            raise ValueError(f"LLM returned invalid JSON: {exc}") from exc
+            raise ValueError(f"LLM returned invalid JSON:\n{cleaned}") from exc
 
     def _mock_plan(self, scene_context: Dict[str, Any], story: str) -> Dict[str, Any]:
         characters: List[str] = scene_context.get("characters", [])
