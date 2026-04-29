@@ -5,6 +5,8 @@ from math import atan2, degrees, sqrt
 from typing import Any, Dict, List, Optional
 
 from cinematic_knowledge import CinematicKnowledgeBase, ShotTemplate
+from llm_director import LLMDirector
+from prompt_builder import DirectorPromptBuilder
 from schema import (
     Beat,
     CameraInstruction,
@@ -36,10 +38,8 @@ class BeatPlan:
     intent: str
     speaker: str
     dialogue: str
-
     template_id: str
     target_role: str
-
     duration: float
     transition: str
 
@@ -77,7 +77,6 @@ class StoryUnderstandingAgent:
         main_character = characters[0] if characters else "CHARACTER"
         main_object = objects[0] if objects else "OBJECT"
         location = locations[0] if locations else "LOCATION"
-
         dialogue = self._extract_dialogue_or_default(story)
 
         return StoryAnalysis(
@@ -86,7 +85,7 @@ class StoryUnderstandingAgent:
             location=location,
             dialogue=dialogue,
             emotion_arc=["mysterious", "focused", "concerned", "mysterious", "confused"],
-            story_intent="approach_reveal_reaction",
+            story_intent="llm_planned_scene",
         )
 
     @staticmethod
@@ -106,87 +105,109 @@ class StoryUnderstandingAgent:
 
 class DirectorAgent:
     """
-    Temporary director planner.
+    Director planner.
 
-    This is still not the final LLM brain.
-    But now it outputs template IDs instead of hardcoding every camera value here.
-    Later, an LLM can generate these BeatPlans directly.
+    Current behavior:
+    - Builds an LLM prompt.
+    - Uses LLMDirector.
+    - LLMDirector currently has a mock fallback, so the project runs without API keys.
+    - Later, set use_mock=False and connect _call_llm().
     """
 
-    def create_beat_plan(self, analysis: StoryAnalysis) -> List[BeatPlan]:
-        c = analysis.main_character
-        o = analysis.main_object
+    def __init__(self, knowledge: CinematicKnowledgeBase, use_mock_llm: bool = True) -> None:
+        self.knowledge = knowledge
+        self.prompt_builder = DirectorPromptBuilder()
+        self.llm_director = LLMDirector(use_mock=use_mock_llm)
 
-        return [
-            BeatPlan(
-                beat_id=1,
-                purpose="Establish the location and mysterious object.",
-                action=f"Aerial establishing shot reveals {o} in the scene.",
-                emotion="mysterious",
-                intent="establish",
-                speaker="",
-                dialogue="",
-                template_id="aerial_object_orbit",
-                target_role="object",
-                duration=5.0,
-                transition="cut",
-            ),
-            BeatPlan(
-                beat_id=2,
-                purpose="Show the character entering through movement detail.",
-                action=f"Low detail shot follows {c}'s feet as he walks toward {o}.",
-                emotion="focused",
-                intent="approach",
-                speaker=c,
-                dialogue="",
-                template_id="feet_follow_detail",
-                target_role="feet",
-                duration=5.0,
-                transition="cut",
-            ),
-            BeatPlan(
-                beat_id=3,
-                purpose="Show the character approaching the mysterious object.",
-                action=f"{c} walks toward the camera and slows near {o}.",
-                emotion="concerned",
-                intent="approach",
-                speaker=c,
-                dialogue="",
-                template_id="medium_walk_approach",
-                target_role="character",
-                duration=6.0,
-                transition="cut",
-            ),
-            BeatPlan(
-                beat_id=4,
-                purpose="Reveal the object from behind the character.",
-                action=f"Over-the-shoulder reveal of {o} in front of {c}.",
-                emotion="mysterious",
-                intent="reveal",
-                speaker=c,
-                dialogue="",
-                template_id="over_shoulder_reveal",
-                target_role="object",
-                duration=5.0,
-                transition="cut",
-            ),
-            BeatPlan(
-                beat_id=5,
-                purpose="Show emotional reaction and inner thought.",
-                action=f"Close-up on {c}'s face as he reacts with confusion.",
-                emotion="confused",
-                intent="question",
-                speaker=c,
-                dialogue=analysis.dialogue,
-                template_id="face_reaction_closeup",
-                target_role="head",
-                duration=5.0,
-                transition="fade",
-            ),
-        ]
+    def create_beat_plan(
+            self,
+            analysis: StoryAnalysis,
+            scene_context: Dict[str, Any],
+            story: str,
+    ) -> List[BeatPlan]:
+        prompt = self.prompt_builder.build_prompt(
+            story=story,
+            scene_context=scene_context,
+            cinematic_templates=self._templates_for_prompt(),
+        )
+
+        llm_plan = self.llm_director.generate_plan(
+            prompt=prompt,
+            scene_context=scene_context,
+            story=story,
+        )
+
+        return self._beat_plans_from_llm_json(llm_plan, analysis)
+
+    def _templates_for_prompt(self) -> Dict[str, Any]:
+        prompt_templates: Dict[str, Any] = {}
+
+        for template_id, template in self.knowledge.templates.items():
+            prompt_templates[template_id] = {
+                "description": template.description,
+                "shot_type": template.shot_type,
+                "camera_movement": template.camera_movement,
+                "fov": template.fov,
+                "offset": template.offset.to_dict() if template.offset else None,
+                "force_world_position": template.force_world_position,
+            }
+
+        return prompt_templates
+
+    def _beat_plans_from_llm_json(
+            self,
+            data: Dict[str, Any],
+            analysis: StoryAnalysis,
+    ) -> List[BeatPlan]:
+        raw_beats = data.get("beats", [])
+
+        if not raw_beats:
+            raise ValueError("LLM plan did not contain any beats.")
+
+        beat_plans: List[BeatPlan] = []
+
+        for index, raw in enumerate(raw_beats, start=1):
+            template_id = str(raw.get("template_id", "")).strip()
+
+            if template_id not in self.knowledge.templates:
+                template_id = "medium_walk_approach"
+
+            target_role = str(raw.get("target_role", "character")).strip()
+            if target_role not in {"character", "object", "feet", "head", "body"}:
+                target_role = "character"
+
+            speaker = str(raw.get("speaker", "")).strip()
+
+            if speaker and speaker not in [analysis.main_character]:
+                speaker = analysis.main_character
+
+            beat_plans.append(
+                BeatPlan(
+                    beat_id=int(raw.get("beat_id", index)),
+                    purpose=str(raw.get("purpose", "Cinematic beat.")),
+                    action=str(raw.get("action", "")),
+                    emotion=str(raw.get("emotion", "neutral")),
+                    intent=str(raw.get("intent", "observe")),
+                    speaker=speaker,
+                    dialogue=str(raw.get("dialogue", "")),
+                    template_id=template_id,
+                    target_role=target_role,
+                    duration=float(raw.get("duration", 4.0)),
+                    transition=str(raw.get("transition", "cut")),
+                )
+            )
+
+        return beat_plans
 
 
 class BlockingAgent:
+    """
+    Temporary blocking planner.
+
+    This still uses simple scene_context positions.
+    Later, this should also come from LLM output or a scene-aware planner.
+    """
+
     def create_blocking(
             self,
             beat_plan: BeatPlan,
@@ -199,10 +220,10 @@ class BlockingAgent:
         middle = self._vec(scene_context.get("default_character_middle", {"x": -5.0, "y": 0.0, "z": 4.0}))
         end = self._vec(scene_context.get("default_character_end", {"x": -5.0, "y": 0.0, "z": -1.0}))
 
-        if beat_plan.beat_id == 1:
+        if beat_plan.speaker != c:
             return None
 
-        if beat_plan.beat_id == 2:
+        if beat_plan.intent == "approach" and beat_plan.target_role == "feet":
             return BlockingPlan(
                 character_name=c,
                 animation="Walk",
@@ -212,7 +233,7 @@ class BlockingAgent:
                 move_speed=1.0,
             )
 
-        if beat_plan.beat_id == 3:
+        if beat_plan.intent == "approach":
             return BlockingPlan(
                 character_name=c,
                 animation="Walk",
@@ -222,7 +243,7 @@ class BlockingAgent:
                 move_speed=0.8,
             )
 
-        if beat_plan.beat_id == 4:
+        if beat_plan.intent in {"reveal", "observe"}:
             return BlockingPlan(
                 character_name=c,
                 animation="Idle",
@@ -232,7 +253,7 @@ class BlockingAgent:
                 move_speed=None,
             )
 
-        if beat_plan.beat_id == 5:
+        if beat_plan.intent in {"question", "react", "dialogue"}:
             return BlockingPlan(
                 character_name=c,
                 animation="Reaction",
@@ -242,7 +263,14 @@ class BlockingAgent:
                 move_speed=None,
             )
 
-        return None
+        return BlockingPlan(
+            character_name=c,
+            animation="Idle",
+            start_position=end,
+            end_position=None,
+            facing_y=180.0,
+            move_speed=None,
+        )
 
     @staticmethod
     def _vec(data: Dict[str, Any]) -> Vector3:
@@ -250,8 +278,8 @@ class BlockingAgent:
 
 
 class CinematographerAgent:
-    def __init__(self) -> None:
-        self.knowledge = CinematicKnowledgeBase()
+    def __init__(self, knowledge: CinematicKnowledgeBase) -> None:
+        self.knowledge = knowledge
 
     def create_camera_plan(
             self,
@@ -326,6 +354,9 @@ class CinematographerAgent:
         if target_role == "head":
             return f"{character}_HEAD"
 
+        if target_role == "body":
+            return f"{character}_BODY"
+
         return character
 
     @staticmethod
@@ -338,6 +369,9 @@ class CinematographerAgent:
 
         if target_role == "head":
             return f"{character}_HEAD"
+
+        if target_role == "body":
+            return f"{character}_BODY"
 
         return character
 
@@ -413,17 +447,27 @@ class UnitySafetyValidatorAgent:
 
 
 class MultiAgentDirectorBrain:
-    def __init__(self) -> None:
+    def __init__(self, use_mock_llm: bool = True) -> None:
+        self.knowledge = CinematicKnowledgeBase()
+
         self.story_agent = StoryUnderstandingAgent()
-        self.director_agent = DirectorAgent()
+        self.director_agent = DirectorAgent(
+            knowledge=self.knowledge,
+            use_mock_llm=use_mock_llm,
+        )
         self.blocking_agent = BlockingAgent()
-        self.cinematographer_agent = CinematographerAgent()
+        self.cinematographer_agent = CinematographerAgent(self.knowledge)
         self.editor_agent = EditorAgent()
         self.validator_agent = UnitySafetyValidatorAgent()
 
     def generate(self, scene_context: Dict[str, Any], story: str) -> UniversalBeatScript:
         analysis = self.story_agent.analyze(scene_context, story)
-        beat_plans = self.director_agent.create_beat_plan(analysis)
+
+        beat_plans = self.director_agent.create_beat_plan(
+            analysis=analysis,
+            scene_context=scene_context,
+            story=story,
+        )
 
         beats: List[Beat] = []
 
