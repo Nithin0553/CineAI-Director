@@ -62,7 +62,7 @@ class LLMDirector:
         )
 
         try:
-            with urllib.request.urlopen(request, timeout=120) as response:
+            with urllib.request.urlopen(request, timeout=300) as response:
                 response_body = response.read().decode("utf-8")
         except urllib.error.URLError as exc:
             raise ConnectionError(

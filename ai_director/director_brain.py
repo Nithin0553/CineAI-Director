@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from math import atan2, degrees, sqrt
 from typing import Any, Dict, List, Optional
 
+from camera_parameter_normalizer import CameraParameterNormalizer, NormalizedCameraPlan
 from cinematic_knowledge import CinematicKnowledgeBase, ShotTemplate
 from llm_director import LLMDirector
 from prompt_builder import DirectorPromptBuilder
@@ -43,6 +44,7 @@ class BeatPlan:
     target_role: str
     duration: float
     transition: str
+    raw_camera: Optional[Dict[str, Any]]
 
 
 @dataclass
@@ -93,13 +95,11 @@ class StoryUnderstandingAgent:
     def _extract_dialogue_or_default(story: str) -> str:
         if '"' in story:
             parts = story.split('"')
-
             if len(parts) >= 3:
                 return parts[1].strip()
 
         if ":" in story:
             possible_line = story.split(":")[-1].strip()
-
             if len(possible_line) > 3:
                 return possible_line
 
@@ -108,10 +108,10 @@ class StoryUnderstandingAgent:
 
 class DirectorAgent:
     """
-    Universal director planner.
+    Version 2 universal director planner.
 
-    It builds the LLM prompt, gets a raw LLM plan, then uses SemanticNormalizer
-    to convert weak LLM output into safe cinematic categories.
+    LLM now generates camera parameters directly.
+    Templates remain as fallback/safety references only.
     """
 
     def __init__(self, knowledge: CinematicKnowledgeBase, use_mock_llm: bool = True) -> None:
@@ -153,6 +153,8 @@ class DirectorAgent:
                 "fov": template.fov,
                 "offset": template.offset.to_dict() if template.offset else None,
                 "force_world_position": template.force_world_position,
+                "movement_speed": template.movement_speed,
+                "movement_radius": template.movement_radius,
             }
 
         return prompt_templates
@@ -187,6 +189,7 @@ class DirectorAgent:
                     target_role=str(raw.get("target_role", "character")),
                     duration=float(raw.get("duration", 4.0)),
                     transition=str(raw.get("transition", "cut")),
+                    raw_camera=raw.get("camera") if isinstance(raw.get("camera"), dict) else None,
                 )
             )
 
@@ -194,13 +197,6 @@ class DirectorAgent:
 
 
 class BlockingAgent:
-    """
-    Temporary generic blocking planner.
-
-    It uses scene_context default points.
-    This is still generic, but later it should be replaced by scene-aware LLM blocking.
-    """
-
     def create_blocking(
             self,
             beat_plan: BeatPlan,
@@ -217,53 +213,18 @@ class BlockingAgent:
             return None
 
         if beat_plan.intent == "approach" and beat_plan.target_role == "feet":
-            return BlockingPlan(
-                character_name=c,
-                animation="Walk",
-                start_position=start,
-                end_position=middle,
-                facing_y=180.0,
-                move_speed=1.0,
-            )
+            return BlockingPlan(c, "Walk", start, middle, 180.0, 1.0)
 
         if beat_plan.intent == "approach":
-            return BlockingPlan(
-                character_name=c,
-                animation="Walk",
-                start_position=middle,
-                end_position=end,
-                facing_y=180.0,
-                move_speed=0.8,
-            )
+            return BlockingPlan(c, "Walk", middle, end, 180.0, 0.8)
 
         if beat_plan.intent in {"reveal", "observe", "insert"}:
-            return BlockingPlan(
-                character_name=c,
-                animation="Idle",
-                start_position=end,
-                end_position=None,
-                facing_y=180.0,
-                move_speed=None,
-            )
+            return BlockingPlan(c, "Idle", end, None, 180.0, None)
 
         if beat_plan.intent in {"question", "react", "dialogue"}:
-            return BlockingPlan(
-                character_name=c,
-                animation="Reaction",
-                start_position=end,
-                end_position=None,
-                facing_y=180.0,
-                move_speed=None,
-            )
+            return BlockingPlan(c, "Reaction", end, None, 180.0, None)
 
-        return BlockingPlan(
-            character_name=c,
-            animation="Idle",
-            start_position=end,
-            end_position=None,
-            facing_y=180.0,
-            move_speed=None,
-        )
+        return BlockingPlan(c, "Idle", end, None, 180.0, None)
 
     @staticmethod
     def _vec(data: Dict[str, Any]) -> Vector3:
@@ -273,6 +234,7 @@ class BlockingAgent:
 class CinematographerAgent:
     def __init__(self, knowledge: CinematicKnowledgeBase) -> None:
         self.knowledge = knowledge
+        self.camera_normalizer = CameraParameterNormalizer()
 
     def create_camera_plan(
             self,
@@ -281,117 +243,56 @@ class CinematographerAgent:
             analysis: StoryAnalysis,
             scene_context: Dict[str, Any],
     ) -> CameraPlan:
-        template = self.knowledge.get(beat_plan.template_id)
+        fallback_template = self.knowledge.get(beat_plan.template_id)
+
+        camera_params = self.camera_normalizer.normalize(
+            raw_camera=beat_plan.raw_camera,
+            fallback_template=fallback_template,
+            semantic_target_role=beat_plan.target_role,
+        )
 
         c = analysis.main_character
         o = analysis.main_object
 
-        if beat_plan.template_id == "over_shoulder_reveal":
-            look_at = o
-            follow = c
-        else:
-            look_at = self._resolve_target_name(beat_plan.target_role, c, o)
-            follow = self._resolve_follow_name(beat_plan.target_role, c, o)
+        look_at = self._resolve_role(camera_params.look_at_role, c, o)
+        follow = self._resolve_role(camera_params.follow_role, c, o) if camera_params.follow_role else None
 
-        position = template.position
-        rotation = template.rotation
+        camera_params.movement.target = follow or look_at
 
-        if template.force_world_position:
-            object_pos = self._vec(scene_context.get("default_object_position", {"x": -5.0, "y": 0.0, "z": -3.0}))
-            position = Vector3(
-                object_pos.x + template.position.x,
-                object_pos.y + template.position.y,
-                object_pos.z + template.position.z,
-                )
-            rotation = self._look_at_rotation(position, object_pos)
-
-        movement_target = follow or look_at
-
-        return self._camera_from_template(
-            beat_id=beat_plan.beat_id,
-            template=template,
-            look_at=look_at,
-            follow=follow,
-            movement_target=movement_target,
-            position=position,
-            rotation=rotation,
-        )
-
-    def _camera_from_template(
-            self,
-            beat_id: int,
-            template: ShotTemplate,
-            look_at: Optional[str],
-            follow: Optional[str],
-            movement_target: Optional[str],
-            position: Vector3,
-            rotation: Rotation,
-    ) -> CameraPlan:
         return CameraPlan(
-            name=f"VCam_{beat_id}",
-            shot_type=template.shot_type,
-            position=position,
-            rotation=rotation,
-            fov=template.fov,
+            name=f"VCam_{beat_plan.beat_id}",
+            shot_type=camera_params.shot_type,
+            position=camera_params.position,
+            rotation=camera_params.rotation,
+            fov=camera_params.fov,
             look_at=look_at,
             follow=follow,
-            offset=template.offset,
-            movement=self.knowledge.movement_for(template, movement_target),
-            force_world_position=template.force_world_position,
+            offset=camera_params.offset,
+            movement=camera_params.movement,
+            force_world_position=camera_params.force_world_position,
         )
 
     @staticmethod
-    def _resolve_target_name(target_role: str, character: str, obj: str) -> str:
-        if target_role == "object":
-            return obj
-
-        if target_role == "feet":
-            return f"{character}_FEET"
-
-        if target_role == "head":
-            return f"{character}_HEAD"
-
-        if target_role == "body":
-            return f"{character}_BODY"
-
-        return character
-
-    @staticmethod
-    def _resolve_follow_name(target_role: str, character: str, obj: str) -> Optional[str]:
-        if target_role == "object":
+    def _resolve_role(role: Optional[str], character: str, obj: str) -> Optional[str]:
+        if role is None:
             return None
 
-        if target_role == "feet":
+        if role == "object":
+            return obj
+
+        if role == "feet":
             return f"{character}_FEET"
 
-        if target_role == "head":
+        if role == "head":
             return f"{character}_HEAD"
 
-        if target_role == "body":
+        if role == "body":
             return f"{character}_BODY"
 
+        if role == "character":
+            return character
+
         return character
-
-    @staticmethod
-    def _vec(data: Dict[str, Any]) -> Vector3:
-        return Vector3(float(data["x"]), float(data["y"]), float(data["z"]))
-
-    @staticmethod
-    def _look_at_rotation(camera_pos: Vector3, target_pos: Vector3) -> Rotation:
-        dx = target_pos.x - camera_pos.x
-        dy = target_pos.y - camera_pos.y
-        dz = target_pos.z - camera_pos.z
-
-        horizontal_distance = sqrt(dx * dx + dz * dz)
-
-        pitch = -degrees(atan2(dy, horizontal_distance))
-        yaw = degrees(atan2(dx, dz))
-
-        return Rotation(
-            x=round(pitch, 2),
-            y=round(yaw, 2),
-            z=0.0,
-        )
 
 
 class EditorAgent:
