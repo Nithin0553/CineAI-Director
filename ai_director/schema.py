@@ -114,7 +114,7 @@ class CameraInstruction:
     movement: CameraMovementInstruction = field(default_factory=CameraMovementInstruction)
 
     # If true, Unity exports this beat as exact world position + rotation.
-    # Use mainly for aerial/environment shots. Character/head/feet shots should usually use offsets.
+    # Use only for shots that intentionally provide valid world camera coordinates.
     force_world_position: bool = False
 
     def to_dict(self) -> Dict[str, Any]:
@@ -197,10 +197,9 @@ def unity_legacy_beat_script(universal_script: UniversalBeatScript) -> Dict[str,
     """
     Converts Universal Beat Script into the Unity Beat.cs-compatible format.
 
-    Architecture:
-    - AI/multi-agent brain decides shot target, offset, FOV, movement, animation, and timing.
-    - Unity resolves actual objects/bones and applies these values.
-    - World positions are only forced when force_world_position=True or for no-character environment shots.
+    Rule:
+    - Exact camera position is used only when cam.force_world_position is true.
+    - All other shots use target-relative camera offset.
     """
 
     legacy_beats: List[Dict[str, Any]] = []
@@ -213,7 +212,7 @@ def unity_legacy_beat_script(universal_script: UniversalBeatScript) -> Dict[str,
         speaker_name = char.name if char else beat.speaker
         focus_target = cam.look_at or cam.follow or (char.name if char else "")
 
-        use_exact_position = cam.force_world_position or (char is None and bool(cam.look_at))
+        use_exact_position = bool(cam.force_world_position)
         use_exact_offset = not use_exact_position
 
         offset = cam.offset if cam.offset else Vector3(0.0, 1.7, -4.0)

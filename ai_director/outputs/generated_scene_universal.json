@@ -17,7 +17,7 @@
       "purpose": "Establish Setting",
       "speaker": "",
       "dialogue": "",
-      "action": "Walk Toward Rock",
+      "action": "Walk toward rock",
       "emotion": "neutral",
       "intent": "establish",
       "duration": 2.0,
@@ -57,7 +57,7 @@
       "purpose": "Approach Object",
       "speaker": "",
       "dialogue": "",
-      "action": "Stop in Front of Rock",
+      "action": "Stop in front of rock",
       "emotion": "mysterious",
       "intent": "approach",
       "duration": 2.0,
@@ -98,16 +98,60 @@
     },
     {
       "beat_id": 3,
-      "purpose": "Reveal Character's Reaction",
+      "purpose": "Reveal Object",
       "speaker": "",
       "dialogue": "",
-      "action": "Look Confused",
+      "action": "Look at rock",
+      "emotion": "confused",
+      "intent": "reveal",
+      "duration": 2.0,
+      "character": null,
+      "camera": {
+        "name": "VCam_3",
+        "shot_type": "over_the_shoulder",
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "rotation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "fov": 60.0,
+        "look_at": "UNCLE_BEN",
+        "follow": "UNCLE_BEN",
+        "offset": {
+          "x": 0.55,
+          "y": 1.85,
+          "z": -2.2
+        },
+        "movement": {
+          "type": "pan",
+          "target": "UNCLE_BEN",
+          "speed": 8.0,
+          "radius": 1.5
+        },
+        "force_world_position": false
+      },
+      "transition": {
+        "type": "cut",
+        "duration": 0.0
+      }
+    },
+    {
+      "beat_id": 4,
+      "purpose": "Reaction Shot",
+      "speaker": "",
+      "dialogue": "",
+      "action": "Think about rock",
       "emotion": "confused",
       "intent": "react",
       "duration": 2.0,
       "character": null,
       "camera": {
-        "name": "VCam_3",
+        "name": "VCam_4",
         "shot_type": "close_up",
         "position": {
           "x": 0.0,
@@ -141,14 +185,14 @@
       }
     },
     {
-      "beat_id": 4,
-      "purpose": "Establish Character's Thought Process",
+      "beat_id": 5,
+      "purpose": "Dialogue",
       "speaker": "UNCLE_BEN",
       "dialogue": "Strange, where did this rock come from?",
-      "action": "Think: Strange, where did this rock come from?",
+      "action": "Ask question about rock",
       "emotion": "confused",
       "intent": "question",
-      "duration": 2.0,
+      "duration": 3.0,
       "character": {
         "name": "UNCLE_BEN",
         "animation": "Reaction",
@@ -162,8 +206,8 @@
         "move_speed": null
       },
       "camera": {
-        "name": "VCam_4",
-        "shot_type": "insert_shot",
+        "name": "VCam_5",
+        "shot_type": "medium_shot",
         "position": {
           "x": 0.0,
           "y": 0.0,
@@ -174,18 +218,18 @@
           "y": 0.0,
           "z": 0.0
         },
-        "fov": 36.0,
+        "fov": 55.0,
         "look_at": "UNCLE_BEN",
         "follow": "UNCLE_BEN",
         "offset": {
           "x": 0.0,
-          "y": 1.0,
-          "z": -2.2
+          "y": 1.8,
+          "z": 4.5
         },
         "movement": {
-          "type": "static",
+          "type": "follow",
           "target": "UNCLE_BEN",
-          "speed": null,
+          "speed": 0.8,
           "radius": null
         },
         "force_world_position": false

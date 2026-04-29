@@ -62,7 +62,8 @@ public class SceneBindingResolver : MonoBehaviour
                 .Replace("_CHEST", "")
                 .Replace("_chest", "")
                 .Replace("body", "")
-                .Replace("chest", "");
+                .Replace("chest", "")
+                .Trim();
 
             Transform anchor = ResolveVirtualAnchor(rootName, "BODY");
 
@@ -121,8 +122,15 @@ public class SceneBindingResolver : MonoBehaviour
         return null;
     }
 
-    public Transform ResolveSpeaker(string speaker) => ResolveTarget(speaker);
-    public Transform ResolveFocus(string focus) => ResolveTarget(focus);
+    public Transform ResolveSpeaker(string speaker)
+    {
+        return ResolveTarget(speaker);
+    }
+
+    public Transform ResolveFocus(string focus)
+    {
+        return ResolveTarget(focus);
+    }
 
     private Transform ResolveVirtualAnchor(string rootName, string anchorType)
     {
@@ -134,6 +142,7 @@ public class SceneBindingResolver : MonoBehaviour
         if (root == null)
         {
             GameObject partial = FindPartial(rootName);
+
             if (partial != null)
                 root = partial;
         }
@@ -152,36 +161,40 @@ public class SceneBindingResolver : MonoBehaviour
         {
             VirtualCameraAnchor existingAnchor = existing.GetComponent<VirtualCameraAnchor>();
 
-            if (existingAnchor != null)
+            if (existingAnchor == null)
             {
-                existingAnchor.targetRoot = root.transform;
-                existingAnchor.anchorType = anchorType;
-                existingAnchor.headHeight = headAnchorHeight;
-                existingAnchor.feetHeight = feetAnchorHeight;
-                existingAnchor.bodyHeight = bodyAnchorHeight;
-                existingAnchor.headForwardOffset = headForwardOffset;
-                existingAnchor.feetForwardOffset = feetForwardOffset;
+                Debug.LogWarning($"⚠️ Existing anchor has missing/invalid VirtualCameraAnchor script. Recreating: {anchorName}");
+                DestroyImmediate(existing);
+                existing = null;
             }
-
-            return existing.transform;
+            else
+            {
+                ConfigureAnchor(existingAnchor, root.transform, anchorType);
+                existingAnchor.UpdateAnchorNow();
+                return existing.transform;
+            }
         }
 
         GameObject anchorObj = new GameObject(anchorName);
         anchorObj.transform.SetParent(root.transform, false);
 
         VirtualCameraAnchor anchor = anchorObj.AddComponent<VirtualCameraAnchor>();
-        anchor.targetRoot = root.transform;
+        ConfigureAnchor(anchor, root.transform, anchorType);
+        anchor.UpdateAnchorNow();
+
+        Debug.Log($"🎯 Created virtual camera anchor: {anchorName}");
+        return anchorObj.transform;
+    }
+
+    private void ConfigureAnchor(VirtualCameraAnchor anchor, Transform root, string anchorType)
+    {
+        anchor.targetRoot = root;
         anchor.anchorType = anchorType;
         anchor.headHeight = headAnchorHeight;
         anchor.feetHeight = feetAnchorHeight;
         anchor.bodyHeight = bodyAnchorHeight;
         anchor.headForwardOffset = headForwardOffset;
         anchor.feetForwardOffset = feetForwardOffset;
-
-        anchor.UpdateAnchorNow();
-
-        Debug.Log($"🎯 Created virtual camera anchor: {anchorName}");
-        return anchorObj.transform;
     }
 
     private string CleanSemanticSuffix(string name, string upperSuffix, string lowerSuffix, string plainName)
@@ -208,53 +221,5 @@ public class SceneBindingResolver : MonoBehaviour
         GameObject[] allObjects = GameObject.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
 
         return allObjects.FirstOrDefault(obj => obj.name.ToLower().Contains(lowerKeyword));
-    }
-}
-
-public class VirtualCameraAnchor : MonoBehaviour
-{
-    public Transform targetRoot;
-    public string anchorType = "BODY";
-
-    public float headHeight = 1.65f;
-    public float feetHeight = 0.35f;
-    public float bodyHeight = 1.15f;
-
-    public float headForwardOffset = 0.0f;
-    public float feetForwardOffset = 0.0f;
-
-    private void LateUpdate()
-    {
-        UpdateAnchorNow();
-    }
-
-    public void UpdateAnchorNow()
-    {
-        if (targetRoot == null)
-            return;
-
-        Vector3 offset = Vector3.zero;
-
-        switch (anchorType)
-        {
-            case "HEAD":
-                offset = Vector3.up * headHeight + targetRoot.forward * headForwardOffset;
-                break;
-
-            case "FEET":
-                offset = Vector3.up * feetHeight + targetRoot.forward * feetForwardOffset;
-                break;
-
-            case "BODY":
-            default:
-                offset = Vector3.up * bodyHeight;
-                break;
-        }
-
-        transform.position = targetRoot.position + offset;
-
-        // Important: keep clean identity-style rotation behavior.
-        // We do not copy Mixamo bone rotation because that twists the camera.
-        transform.rotation = Quaternion.Euler(0f, targetRoot.eulerAngles.y, 0f);
     }
 }
