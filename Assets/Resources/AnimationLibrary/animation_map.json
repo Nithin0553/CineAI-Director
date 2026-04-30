@@ -1,0 +1,29 @@
+{
+  "default_idle": "Idle",
+  "aliases": [
+    {
+      "action": "walk",
+      "clips": ["Walk", "Walking", "WalkForward", "walk"]
+    },
+    {
+      "action": "walking",
+      "clips": ["Walk", "Walking", "WalkForward", "walk"]
+    },
+    {
+      "action": "approach",
+      "clips": ["Walk", "Walking", "WalkForward", "walk"]
+    },
+    {
+      "action": "idle",
+      "clips": ["Idle", "Standing", "Stand", "idle"]
+    },
+    {
+      "action": "reaction",
+      "clips": ["Reaction", "React", "Thinking", "Confused", "Idle"]
+    },
+    {
+      "action": "question",
+      "clips": ["Thinking", "Reaction", "Idle"]
+    }
+  ]
+}

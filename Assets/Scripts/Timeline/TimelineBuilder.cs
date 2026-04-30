@@ -14,6 +14,8 @@ public class TimelineBuilder : MonoBehaviour
 {
     public string outputFolder = "Assets/GeneratedCutscenes";
 
+    private AnimationLibraryResolver animationResolver;
+
     // ==============================
     // CREATE / LOAD TIMELINE
     // ==============================
@@ -71,52 +73,56 @@ public class TimelineBuilder : MonoBehaviour
     // ==============================
     // CLIP ADDERS
     // ==============================
-
     public void AddActivationClip(ActivationTrack track, double start, double duration)
     {
-        var clip = track.CreateDefaultClip();
+        TimelineClip clip = track.CreateDefaultClip();
         clip.start = start;
         clip.duration = duration;
         clip.displayName = "Active";
     }
 
-    /// <summary>
-    /// FIX #1: Set trackOffset = ApplyTransformOffsets so the Animation Track
-    /// does NOT write root motion to the character transform. This lets
-    /// CutsceneCharacterMover own the position/rotation exclusively.
-    /// Without this fix the animation clip and the mover fight every frame,
-    /// causing the "walks but stays in place" bug.
-    /// </summary>
     public void AddAnimationClip(
         AnimationTrack track,
         double start,
         double duration,
         string animationName)
     {
-        // ── FIX #1: Prevent Timeline from applying root motion ────────
+        // Position movement is handled by CutsceneCharacterMover.
+        // Timeline animation clips are used only for body/leg motion.
         track.trackOffset = TrackOffset.ApplyTransformOffsets;
 
-        var clip = track.CreateClip<AnimationPlayableAsset>();
+        string safeAnimationName = string.IsNullOrWhiteSpace(animationName)
+            ? "Idle"
+            : animationName.Trim();
+
+        TimelineClip clip = track.CreateClip<AnimationPlayableAsset>();
         clip.start = start;
         clip.duration = duration;
-        clip.displayName = animationName;
+        clip.displayName = safeAnimationName;
 
         AnimationPlayableAsset asset = clip.asset as AnimationPlayableAsset;
 
-        // Disable foot IK on the clip asset as well
+        if (asset == null)
+        {
+            Debug.LogWarning($"⚠ Could not create AnimationPlayableAsset for '{safeAnimationName}'");
+            return;
+        }
+
         asset.applyFootIK = false;
 
-        // Load animation from Resources/Animations/
-        AnimationClip anim = Resources.Load<AnimationClip>("Animations/" + animationName);
+        if (animationResolver == null)
+            animationResolver = new AnimationLibraryResolver();
+
+        AnimationClip anim = animationResolver.Resolve(safeAnimationName);
 
         if (anim == null)
         {
-            Debug.LogWarning("⚠ Animation not found in Resources/Animations/: " + animationName);
+            Debug.LogWarning($"⚠ No animation clip assigned for '{safeAnimationName}'. Timeline clip will be empty.");
             return;
         }
 
         asset.clip = anim;
-        Debug.Log($"✅ Animation clip assigned: {animationName}");
+        Debug.Log($"✅ Animation clip assigned: requested='{safeAnimationName}' actual='{anim.name}'");
     }
 
     // ==============================
@@ -174,6 +180,7 @@ public class TimelineBuilder : MonoBehaviour
         for (int i = 1; i < parts.Length; i++)
         {
             string next = current + "/" + parts[i];
+
             if (!AssetDatabase.IsValidFolder(next))
                 AssetDatabase.CreateFolder(current, parts[i]);
 
