@@ -2,15 +2,21 @@
 using UnityEngine;
 using UnityEngine.Playables;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 /// <summary>
 /// Attached to the same GameObject as PlayableDirector.
-/// At runtime it reads the move schedule built by CutsceneCompiler
-/// and physically translates characters along their paths each frame.
+/// It reads the move schedule built by CutsceneCompiler and translates characters
+/// along their paths using the current PlayableDirector time.
 ///
-/// FIX #1: Disables applyRootMotion on all tracked characters in Awake()
-///         so this script owns the transform exclusively and doesn't fight
-///         the Animation Track that Timeline is also driving.
+/// Important:
+/// - Works during normal Play mode playback.
+/// - Also works while scrubbing/previewing the Timeline in the Unity Editor.
+/// - Root motion is disabled so this script owns character world movement.
 /// </summary>
+[ExecuteAlways]
 public class CutsceneCharacterMover : MonoBehaviour
 {
     [HideInInspector]
@@ -18,67 +24,163 @@ public class CutsceneCharacterMover : MonoBehaviour
 
     public PlayableDirector playableDirector;
 
-    // ── FIX #1: Disable root motion before playback starts ────────────
+    [Header("Debug")]
+    public bool enableDebugLogs = false;
+
+    private double lastAppliedTime = -999.0;
+
     private void Awake()
     {
+        if (playableDirector == null)
+            playableDirector = GetComponent<PlayableDirector>();
+
         DisableRootMotionOnAllActors();
     }
 
-    // Also call when schedule is rebuilt at editor time
+    private void OnEnable()
+    {
+        if (playableDirector == null)
+            playableDirector = GetComponent<PlayableDirector>();
+
+        DisableRootMotionOnAllActors();
+    }
+
     public void DisableRootMotionOnAllActors()
     {
+        if (moveSchedule == null)
+            return;
+
         foreach (CharacterMoveData data in moveSchedule)
         {
+            if (data == null || string.IsNullOrEmpty(data.characterName))
+                continue;
+
             GameObject actor = GameObject.Find(data.characterName);
-            if (actor == null) continue;
+
+            if (actor == null)
+                continue;
 
             Animator anim = actor.GetComponent<Animator>();
+
             if (anim != null)
             {
                 anim.applyRootMotion = false;
-                Debug.Log($"🔒 Root motion disabled on: {data.characterName}");
+
+                if (enableDebugLogs)
+                    Debug.Log($"🔒 Root motion disabled on: {data.characterName}");
             }
         }
     }
 
     private void Update()
     {
-        if (playableDirector == null) return;
-        if (playableDirector.state != PlayState.Playing) return;
+        ApplyCurrentDirectorTime();
+    }
 
-        float now = (float)playableDirector.time;
+    private void LateUpdate()
+    {
+        ApplyCurrentDirectorTime();
+    }
+
+    private void ApplyCurrentDirectorTime()
+    {
+        if (playableDirector == null)
+            return;
+
+        if (playableDirector.playableAsset == null)
+            return;
+
+        if (moveSchedule == null || moveSchedule.Count == 0)
+            return;
+
+        double directorTime = playableDirector.time;
+
+        if (Application.isPlaying)
+        {
+            if (playableDirector.state != PlayState.Playing)
+                return;
+        }
+
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            // In editor preview/scrub mode, Timeline changes playableDirector.time
+            // without entering PlayState.Playing. So we still apply movement.
+            if (!EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                // Avoid applying twice for the same timeline time while editor is idle.
+                if (Mathf.Approximately((float)directorTime, (float)lastAppliedTime))
+                    return;
+            }
+        }
+#endif
+
+        ApplyAtTime((float)directorTime);
+        lastAppliedTime = directorTime;
+    }
+
+    public void ApplyAtTime(float now)
+    {
+        if (moveSchedule == null)
+            return;
 
         foreach (CharacterMoveData data in moveSchedule)
         {
-            // Only active during this beat's time window
-            if (now < data.startTime || now > data.startTime + data.duration)
+            if (data == null || string.IsNullOrEmpty(data.characterName))
+                continue;
+
+            bool isInsideBeat = now >= data.startTime && now <= data.startTime + data.duration;
+
+            if (!isInsideBeat)
                 continue;
 
             GameObject actor = GameObject.Find(data.characterName);
-            if (actor == null) continue;
 
-            float t = Mathf.Clamp01((now - data.startTime) / data.duration);
-
-            if (data.shouldMove)
+            if (actor == null)
             {
-                // Smoothed movement along path
-                actor.transform.position = Vector3.Lerp(
-                    data.startPosition, data.endPosition,
-                    Mathf.SmoothStep(0f, 1f, t));
+                if (enableDebugLogs)
+                    Debug.LogWarning($"⚠ Character mover could not find actor: {data.characterName}");
 
-                // Face direction of travel
-                Vector3 dir = data.endPosition - data.startPosition;
-                dir.y = 0;
-                if (dir.sqrMagnitude > 0.001f)
-                    actor.transform.rotation = Quaternion.LookRotation(dir.normalized);
+                continue;
             }
-            else
+
+            ApplyMoveData(actor.transform, data, now);
+        }
+    }
+
+    private void ApplyMoveData(Transform actor, CharacterMoveData data, float now)
+    {
+        float safeDuration = Mathf.Max(data.duration, 0.001f);
+        float t = Mathf.Clamp01((now - data.startTime) / safeDuration);
+        float smoothT = Mathf.SmoothStep(0f, 1f, t);
+
+        if (data.shouldMove)
+        {
+            actor.position = Vector3.Lerp(data.startPosition, data.endPosition, smoothT);
+
+            Vector3 dir = data.endPosition - data.startPosition;
+            dir.y = 0f;
+
+            if (dir.sqrMagnitude > 0.001f)
+                actor.rotation = Quaternion.LookRotation(dir.normalized);
+
+            if (enableDebugLogs)
             {
-                // Snap to start and apply facing
-                actor.transform.position = data.startPosition;
-                if (data.facingY >= 0)
-                    actor.transform.rotation = Quaternion.Euler(0, data.facingY, 0);
+                Debug.Log(
+                    $"🚶 Moving {data.characterName} time={now:F2} t={t:F2} " +
+                    $"from={data.startPosition} to={data.endPosition}"
+                );
             }
+        }
+        else
+        {
+            actor.position = data.startPosition;
+
+            if (data.facingY >= 0f)
+                actor.rotation = Quaternion.Euler(0f, data.facingY, 0f);
+
+            if (enableDebugLogs)
+                Debug.Log($"🧍 Holding {data.characterName} at {data.startPosition}");
         }
     }
 }

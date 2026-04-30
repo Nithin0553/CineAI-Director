@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from math import atan2, degrees, sqrt
 from typing import Any, Dict, List, Optional
 
-from camera_parameter_normalizer import CameraParameterNormalizer, NormalizedCameraPlan
-from cinematic_knowledge import CinematicKnowledgeBase, ShotTemplate
+from camera_parameter_normalizer import CameraParameterNormalizer
+from cinematic_knowledge import CinematicKnowledgeBase
 from llm_director import LLMDirector
 from prompt_builder import DirectorPromptBuilder
 from schema import (
@@ -107,13 +107,6 @@ class StoryUnderstandingAgent:
 
 
 class DirectorAgent:
-    """
-    Version 2 universal director planner.
-
-    LLM now generates camera parameters directly.
-    Templates remain as fallback/safety references only.
-    """
-
     def __init__(self, knowledge: CinematicKnowledgeBase, use_mock_llm: bool = True) -> None:
         self.knowledge = knowledge
         self.prompt_builder = DirectorPromptBuilder()
@@ -197,38 +190,131 @@ class DirectorAgent:
 
 
 class BlockingAgent:
+    """
+    Dynamic scene-aware blocking.
+
+    It no longer uses a fixed lane. It computes the character path relative to
+    the target object position, so it can work for other scenes/games too.
+    """
+
     def create_blocking(
             self,
             beat_plan: BeatPlan,
             analysis: StoryAnalysis,
             scene_context: Dict[str, Any],
     ) -> Optional[BlockingPlan]:
-        c = analysis.main_character
+        character_name = analysis.main_character
 
-        start = self._vec(scene_context.get("default_character_start", {"x": -5.0, "y": 0.0, "z": 12.0}))
-        middle = self._vec(scene_context.get("default_character_middle", {"x": -5.0, "y": 0.0, "z": 4.0}))
-        end = self._vec(scene_context.get("default_character_end", {"x": -5.0, "y": 0.0, "z": -1.0}))
-
-        if beat_plan.speaker != c:
+        if beat_plan.speaker != character_name:
             return None
 
+        object_pos = self._vec(
+            scene_context.get("default_object_position", {"x": -5.0, "y": 0.0, "z": -3.0})
+        )
+
+        scene_start = self._vec(
+            scene_context.get("default_character_start", {"x": -5.0, "y": 0.0, "z": 12.0})
+        )
+
+        stop_distance = float(scene_context.get("approach_stop_distance", 2.0))
+        middle_distance = float(scene_context.get("approach_middle_distance", 6.0))
+        start_distance = float(scene_context.get("approach_start_distance", 12.0))
+
+        approach_dir = self._horizontal_direction_from_object_to_start(
+            object_pos=object_pos,
+            scene_start=scene_start,
+        )
+
+        approach_start = self._point_from_object(object_pos, approach_dir, start_distance, scene_start.y)
+        approach_middle = self._point_from_object(object_pos, approach_dir, middle_distance, scene_start.y)
+        approach_end = self._point_from_object(object_pos, approach_dir, stop_distance, scene_start.y)
+
+        facing_y = self._yaw_toward(
+            from_pos=approach_end,
+            to_pos=object_pos,
+        )
+
         if beat_plan.intent == "approach" and beat_plan.target_role == "feet":
-            return BlockingPlan(c, "Walk", start, middle, 180.0, 1.0)
+            return BlockingPlan(
+                character_name=character_name,
+                animation="Walk",
+                start_position=approach_start,
+                end_position=approach_middle,
+                facing_y=facing_y,
+                move_speed=1.0,
+            )
 
         if beat_plan.intent == "approach":
-            return BlockingPlan(c, "Walk", middle, end, 180.0, 0.8)
+            return BlockingPlan(
+                character_name=character_name,
+                animation="Walk",
+                start_position=approach_middle,
+                end_position=approach_end,
+                facing_y=facing_y,
+                move_speed=0.8,
+            )
 
         if beat_plan.intent in {"reveal", "observe", "insert"}:
-            return BlockingPlan(c, "Idle", end, None, 180.0, None)
+            return BlockingPlan(
+                character_name=character_name,
+                animation="Idle",
+                start_position=approach_end,
+                end_position=None,
+                facing_y=facing_y,
+                move_speed=None,
+            )
 
         if beat_plan.intent in {"question", "react", "dialogue"}:
-            return BlockingPlan(c, "Reaction", end, None, 180.0, None)
+            return BlockingPlan(
+                character_name=character_name,
+                animation="Reaction",
+                start_position=approach_end,
+                end_position=None,
+                facing_y=facing_y,
+                move_speed=None,
+            )
 
-        return BlockingPlan(c, "Idle", end, None, 180.0, None)
+        return BlockingPlan(
+            character_name=character_name,
+            animation="Idle",
+            start_position=approach_end,
+            end_position=None,
+            facing_y=facing_y,
+            move_speed=None,
+        )
 
     @staticmethod
     def _vec(data: Dict[str, Any]) -> Vector3:
         return Vector3(float(data["x"]), float(data["y"]), float(data["z"]))
+
+    @staticmethod
+    def _horizontal_direction_from_object_to_start(object_pos: Vector3, scene_start: Vector3) -> Vector3:
+        dx = scene_start.x - object_pos.x
+        dz = scene_start.z - object_pos.z
+        length = sqrt(dx * dx + dz * dz)
+
+        if length < 0.001:
+            return Vector3(0.0, 0.0, 1.0)
+
+        return Vector3(dx / length, 0.0, dz / length)
+
+    @staticmethod
+    def _point_from_object(object_pos: Vector3, direction: Vector3, distance: float, y: float) -> Vector3:
+        return Vector3(
+            object_pos.x + direction.x * distance,
+            y,
+            object_pos.z + direction.z * distance,
+            )
+
+    @staticmethod
+    def _yaw_toward(from_pos: Vector3, to_pos: Vector3) -> float:
+        dx = to_pos.x - from_pos.x
+        dz = to_pos.z - from_pos.z
+
+        if abs(dx) < 0.001 and abs(dz) < 0.001:
+            return 0.0
+
+        return degrees(atan2(dx, dz))
 
 
 class CinematographerAgent:
