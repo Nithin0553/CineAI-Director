@@ -1,0 +1,28 @@
+{
+    "characters": [
+        "UNCLE_BEN"
+    ],
+    "objects": [
+        "ROCK"
+    ],
+    "locations": [
+        "DefaultLocation"
+    ],
+    "default_character_start": {
+        "x": -5.68701171875,
+        "y": -0.174591064453125,
+        "z": -0.999969482421875
+    },
+    "default_object_position": {
+        "x": 546.6887817382813,
+        "y": 313.0400085449219,
+        "z": 459.2481994628906
+    },
+    "approach_stop_distance": 2.0,
+    "approach_middle_distance": 6.0,
+    "approach_start_distance": 12.0,
+    "available_animations": [
+        "mixamo.com",
+        "Walking"
+    ]
+}
