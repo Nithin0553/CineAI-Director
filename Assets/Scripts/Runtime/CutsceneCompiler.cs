@@ -80,7 +80,7 @@ public class CutsceneCompiler : MonoBehaviour
             if (action.useExactStartPosition && speaker != null)
             {
                 speaker.position = action.exactStartPosition;
-                Debug.Log($"📍 Beat {beat.beat_id} → '{speaker.name}' snapped to {action.exactStartPosition}");
+                Debug.Log($"📍 Beat {beat.beat_id} → '{speaker.name}' snapped to START {action.exactStartPosition}");
             }
 
             if (action.useExactFacing && speaker != null)
@@ -133,6 +133,18 @@ public class CutsceneCompiler : MonoBehaviour
             }
 
             currentTime += beat.duration;
+        }
+
+        CameraSafetyValidator safetyValidator = GetComponent<CameraSafetyValidator>();
+
+        if (safetyValidator != null)
+        {
+            safetyValidator.ValidateAllGeneratedCameras();
+            Debug.Log("🛡 Camera safety validation completed.");
+        }
+        else
+        {
+            Debug.LogWarning("⚠ CameraSafetyValidator not found on this GameObject. Camera safety pass skipped.");
         }
 
         BindTracks(actorTracks, activationTracks);
@@ -241,6 +253,13 @@ public class CutsceneCompiler : MonoBehaviour
 
                 Debug.Log($"📷 VCam_{beat.beat_id} placed at WORLD offset {shot.offset} from {shot.followTarget.name}");
             }
+        }
+        else if (shot.lookTarget != null)
+        {
+            camObject.transform.position =
+                shot.lookTarget.position + shot.offset;
+
+            Debug.Log($"📷 VCam_{beat.beat_id} placed at LOOK TARGET offset {shot.offset} from {shot.lookTarget.name}");
         }
 
         if (beat.use_exact_camera_rotation)
@@ -432,20 +451,23 @@ public class CutsceneCompiler : MonoBehaviour
         if (actorPositions.ContainsKey(key))
             actor.position = actorPositions[key];
 
-        if (beat.use_char_end_position)
-        {
-            actor.position = new Vector3(
-                beat.char_end_x,
-                beat.char_end_y,
-                beat.char_end_z
-            );
-        }
-        else if (beat.use_char_start_position)
+        // IMPORTANT:
+        // For camera generation, use START position first.
+        // Runtime mover handles start → end movement later.
+        if (beat.use_char_start_position)
         {
             actor.position = new Vector3(
                 beat.char_start_x,
                 beat.char_start_y,
                 beat.char_start_z
+            );
+        }
+        else if (beat.use_char_end_position)
+        {
+            actor.position = new Vector3(
+                beat.char_end_x,
+                beat.char_end_y,
+                beat.char_end_z
             );
         }
         else if (focus != null)
