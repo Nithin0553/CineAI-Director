@@ -12,6 +12,11 @@ using Unity.Cinemachine;
 /// - Camera too close to target
 /// - Camera looking too far upward into the sky
 /// - Camera placed under the target
+///
+/// Important:
+/// This validator must also update CinemachineMotionExtension.initialOffset.
+/// Otherwise, CinemachineMotionExtension can reapply the old unsafe offset
+/// during Timeline playback or scrubbing.
 /// </summary>
 public class CameraSafetyValidator : MonoBehaviour
 {
@@ -56,6 +61,7 @@ public class CameraSafetyValidator : MonoBehaviour
         Quaternion originalRotation = cam.transform.rotation;
 
         Vector3 safePosition = cam.transform.position;
+
         safePosition = EnforceDistanceSafety(safePosition, target.position);
         safePosition = EnforceHeightSafety(safePosition, target.position);
         safePosition = EnforceTerrainSafety(safePosition);
@@ -70,16 +76,24 @@ public class CameraSafetyValidator : MonoBehaviour
 
         cam.transform.rotation = safeRotation;
 
+        SyncMotionExtensionOffset(cam, safePosition);
+
         if (enableDebugLogs)
         {
             float movedDistance = Vector3.Distance(originalPosition, safePosition);
+            float rotatedAngle = Quaternion.Angle(originalRotation, safeRotation);
 
-            if (movedDistance > 0.01f || Quaternion.Angle(originalRotation, safeRotation) > 0.5f)
+            if (movedDistance > 0.01f || rotatedAngle > 0.5f)
             {
                 Debug.Log(
                     $"🛡 Camera safety adjusted {cam.name}: " +
-                    $"pos {originalPosition} → {safePosition}"
+                    $"pos {originalPosition} → {safePosition}, " +
+                    $"rotated {rotatedAngle:F2} degrees"
                 );
+            }
+            else
+            {
+                Debug.Log($"✅ Camera safety checked {cam.name}: no correction needed");
             }
         }
     }
@@ -102,13 +116,50 @@ public class CameraSafetyValidator : MonoBehaviour
 
     private Transform ResolveTarget(CinemachineCamera cam)
     {
-        if (cam.Target.TrackingTarget != null)
-            return cam.Target.TrackingTarget;
+        CinemachineMotionExtension motionExtension = cam.GetComponent<CinemachineMotionExtension>();
+
+        if (motionExtension != null)
+        {
+            if (motionExtension.lookTarget != null)
+                return motionExtension.lookTarget;
+
+            if (motionExtension.target != null)
+                return motionExtension.target;
+        }
 
         if (cam.Target.LookAtTarget != null)
             return cam.Target.LookAtTarget;
 
+        if (cam.Target.TrackingTarget != null)
+            return cam.Target.TrackingTarget;
+
         return null;
+    }
+
+    private void SyncMotionExtensionOffset(CinemachineCamera cam, Vector3 safePosition)
+    {
+        CinemachineMotionExtension motionExtension = cam.GetComponent<CinemachineMotionExtension>();
+
+        if (motionExtension == null)
+            return;
+
+        Transform motionTarget = motionExtension.target != null
+            ? motionExtension.target
+            : motionExtension.lookTarget;
+
+        if (motionTarget == null)
+            return;
+
+        motionExtension.initialOffset = safePosition - motionTarget.position;
+        motionExtension.useWorldAnchor = false;
+
+        if (enableDebugLogs)
+        {
+            Debug.Log(
+                $"🔁 CameraSafetyValidator synced {cam.name} motion offset: " +
+                $"initialOffset = {motionExtension.initialOffset}"
+            );
+        }
     }
 
     private Vector3 EnforceDistanceSafety(Vector3 cameraPosition, Vector3 targetPosition)
@@ -117,7 +168,10 @@ public class CameraSafetyValidator : MonoBehaviour
         float distance = fromTarget.magnitude;
 
         if (distance < 0.001f)
+        {
             fromTarget = new Vector3(0.0f, 1.0f, -1.5f).normalized;
+            distance = fromTarget.magnitude;
+        }
 
         if (distance < minimumDistanceFromTarget)
         {
