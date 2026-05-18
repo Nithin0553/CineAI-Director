@@ -18,11 +18,18 @@ public class CutsceneCompiler : MonoBehaviour
 
     public Transform generatedCameraRoot;
 
-    [Tooltip("Drag your MainCamera (with CinemachineBrain) here")]
+    [Tooltip("Drag your MainCamera with CinemachineBrain here")]
     public Camera mainCamera;
 
     [Tooltip("How far in front of the focus target a walking character stops")]
     public float walkStopDistance = 1.5f;
+
+    [Header("Character Ground Safety")]
+    public bool snapGeneratedCharacterPositionsToGround = true;
+    public LayerMask characterGroundMask = ~0;
+    public float characterGroundRaycastHeight = 10.0f;
+    public float characterGroundRaycastDistance = 50.0f;
+    public float characterGroundOffset = 0.02f;
 
     private readonly List<GameObject> spawnedCameraObjects = new List<GameObject>();
 
@@ -52,11 +59,11 @@ public class CutsceneCompiler : MonoBehaviour
         if (brain != null)
         {
             playableDirector.SetGenericBinding(cineTrack, brain);
-            Debug.Log("✅ Bound Cinemachine track to: " + brain.gameObject.name);
+            Debug.Log("Bound Cinemachine track to: " + brain.gameObject.name);
         }
         else
         {
-            Debug.LogError("❌ No CinemachineBrain found! Add one to MainCamera.");
+            Debug.LogError("No CinemachineBrain found. Add one to MainCamera.");
         }
 
         var actorTracks = new Dictionary<string, AnimationTrack>();
@@ -79,14 +86,14 @@ public class CutsceneCompiler : MonoBehaviour
 
             if (action.useExactStartPosition && speaker != null)
             {
-                speaker.position = action.exactStartPosition;
-                Debug.Log($"📍 Beat {beat.beat_id} → '{speaker.name}' snapped to START {action.exactStartPosition}");
+                speaker.position = SnapToGround(action.exactStartPosition, speaker);
+                Debug.Log($"Beat {beat.beat_id} snapped {speaker.name} to START {speaker.position}");
             }
 
             if (action.useExactFacing && speaker != null)
             {
                 speaker.rotation = Quaternion.Euler(0, action.exactFacingY, 0);
-                Debug.Log($"🧭 Beat {beat.beat_id} → '{speaker.name}' facing set to Y={action.exactFacingY}");
+                Debug.Log($"Beat {beat.beat_id} facing set to Y={action.exactFacingY}");
             }
 
             if (speaker != null && !IsEnvironmentBeat(beat))
@@ -140,11 +147,11 @@ public class CutsceneCompiler : MonoBehaviour
         if (safetyValidator != null)
         {
             safetyValidator.ValidateAllGeneratedCameras();
-            Debug.Log("🛡 Camera safety validation completed.");
+            Debug.Log("Camera safety validation completed.");
         }
         else
         {
-            Debug.LogWarning("⚠ CameraSafetyValidator not found on this GameObject. Camera safety pass skipped.");
+            Debug.LogWarning("CameraSafetyValidator not found on this GameObject. Camera safety pass skipped.");
         }
 
         BindTracks(actorTracks, activationTracks);
@@ -161,9 +168,14 @@ public class CutsceneCompiler : MonoBehaviour
 
         mover.playableDirector = playableDirector;
         mover.moveSchedule = moveSchedule;
+        mover.snapCharacterToGround = snapGeneratedCharacterPositionsToGround;
+        mover.groundMask = characterGroundMask;
+        mover.groundRaycastHeight = characterGroundRaycastHeight;
+        mover.groundRaycastDistance = characterGroundRaycastDistance;
+        mover.groundOffset = characterGroundOffset;
         mover.DisableRootMotionOnAllActors();
 
-        Debug.Log($"✅ CUTSCENE GENERATED — {moveSchedule.Count} character move entries");
+        Debug.Log($"CUTSCENE GENERATED — {moveSchedule.Count} character move entries");
     }
 
     private CharacterMoveData BuildMoveData(
@@ -183,25 +195,28 @@ public class CutsceneCompiler : MonoBehaviour
         moveData.shouldMove = shouldMove;
 
         if (action.useExactStartPosition)
-            moveData.startPosition = action.exactStartPosition;
+            moveData.startPosition = SnapToGround(action.exactStartPosition, speaker);
         else
-            moveData.startPosition = speaker.position;
+            moveData.startPosition = SnapToGround(speaker.position, speaker);
 
         if (shouldMove)
         {
             if (action.useExactEndPosition)
             {
-                moveData.endPosition = action.exactEndPosition;
+                moveData.endPosition = SnapToGround(action.exactEndPosition, speaker);
             }
             else if (focus != null)
             {
-                Vector3 dir = (speaker.position - focus.position).normalized;
+                Vector3 dir = speaker.position - focus.position;
+                dir.y = 0f;
 
-                if (dir == Vector3.zero)
+                if (dir.sqrMagnitude < 0.001f)
                     dir = Vector3.forward;
 
+                dir.Normalize();
+
                 moveData.endPosition = focus.position + dir * walkStopDistance;
-                moveData.endPosition.y = speaker.position.y;
+                moveData.endPosition = SnapToGround(moveData.endPosition, speaker);
             }
             else
             {
@@ -233,7 +248,7 @@ public class CutsceneCompiler : MonoBehaviour
         if (shot.useExactPosition)
         {
             camObject.transform.position = shot.exactPosition;
-            Debug.Log($"📷 VCam_{beat.beat_id} placed at AI EXACT world pos {shot.exactPosition}");
+            Debug.Log($"VCam_{beat.beat_id} placed at AI EXACT world pos {shot.exactPosition}");
         }
         else if (shot.followTarget != null)
         {
@@ -244,14 +259,14 @@ public class CutsceneCompiler : MonoBehaviour
                 camObject.transform.position =
                     shot.followTarget.position + shot.followTarget.rotation * shot.offset;
 
-                Debug.Log($"📷 VCam_{beat.beat_id} placed at ANCHOR LOCAL offset {shot.offset} from {shot.followTarget.name}");
+                Debug.Log($"VCam_{beat.beat_id} placed at ANCHOR LOCAL offset {shot.offset} from {shot.followTarget.name}");
             }
             else
             {
                 camObject.transform.position =
                     shot.followTarget.position + shot.offset;
 
-                Debug.Log($"📷 VCam_{beat.beat_id} placed at WORLD offset {shot.offset} from {shot.followTarget.name}");
+                Debug.Log($"VCam_{beat.beat_id} placed at WORLD offset {shot.offset} from {shot.followTarget.name}");
             }
         }
         else if (shot.lookTarget != null)
@@ -259,7 +274,7 @@ public class CutsceneCompiler : MonoBehaviour
             camObject.transform.position =
                 shot.lookTarget.position + shot.offset;
 
-            Debug.Log($"📷 VCam_{beat.beat_id} placed at LOOK TARGET offset {shot.offset} from {shot.lookTarget.name}");
+            Debug.Log($"VCam_{beat.beat_id} placed at LOOK TARGET offset {shot.offset} from {shot.lookTarget.name}");
         }
 
         if (beat.use_exact_camera_rotation)
@@ -270,7 +285,7 @@ public class CutsceneCompiler : MonoBehaviour
                 beat.camera_rotation_z
             );
 
-            Debug.Log($"🎬 VCam_{beat.beat_id} rotation set from AI: {camObject.transform.rotation.eulerAngles}");
+            Debug.Log($"VCam_{beat.beat_id} rotation set from AI: {camObject.transform.rotation.eulerAngles}");
         }
         else if (shot.lookTarget != null)
         {
@@ -285,7 +300,7 @@ public class CutsceneCompiler : MonoBehaviour
         if (exactStaticCamera)
         {
             cam.Lens.FieldOfView = shot.fov;
-            Debug.Log($"🎥 VCam_{beat.beat_id} using pure AI exact static transform.");
+            Debug.Log($"VCam_{beat.beat_id} using pure AI exact static transform.");
             return cam;
         }
 
@@ -306,8 +321,8 @@ public class CutsceneCompiler : MonoBehaviour
 
                 Debug.Log(
                     isVirtualAnchor
-                        ? $"🎥 VCam_{beat.beat_id} using MotionExtension FOLLOW with ANCHOR LOCAL offset {shot.offset}"
-                        : $"🎥 VCam_{beat.beat_id} using MotionExtension FOLLOW with WORLD offset {shot.offset}"
+                        ? $"VCam_{beat.beat_id} using MotionExtension FOLLOW with ANCHOR LOCAL offset {shot.offset}"
+                        : $"VCam_{beat.beat_id} using MotionExtension FOLLOW with WORLD offset {shot.offset}"
                 );
             }
             else if (shot.lookTarget != null)
@@ -318,7 +333,7 @@ public class CutsceneCompiler : MonoBehaviour
                 ext.initialOffset = shot.offset;
                 ext.motionType = CinemachineMotionExtension.MotionType.Static;
 
-                Debug.Log($"🎥 VCam_{beat.beat_id} using MotionExtension STATIC look target {shot.lookTarget.name}");
+                Debug.Log($"VCam_{beat.beat_id} using MotionExtension STATIC look target {shot.lookTarget.name}");
             }
 
             cam.Lens.FieldOfView = shot.fov;
@@ -327,7 +342,7 @@ public class CutsceneCompiler : MonoBehaviour
 
         if (shot.lookTarget == null && shot.followTarget == null)
         {
-            Debug.LogWarning($"⚠️ VCam_{beat.beat_id}: no follow/look target found. Skipping motion extension.");
+            Debug.LogWarning($"VCam_{beat.beat_id}: no follow/look target found. Skipping motion extension.");
             cam.Lens.FieldOfView = shot.fov;
             return cam;
         }
@@ -355,7 +370,7 @@ public class CutsceneCompiler : MonoBehaviour
         motionExt.motionType = MapMotionType(shot.movementType);
 
         if (motionExt.target == null && !motionExt.useWorldAnchor && motionExt.lookTarget == null)
-            Debug.LogWarning($"⚠️ VCam_{beat.beat_id}: motion target is null! Set focus_target.");
+            Debug.LogWarning($"VCam_{beat.beat_id}: motion target is null. Set focus_target.");
 
         if (shot.orbitSpeedOverride > 0)
             motionExt.orbitSpeed = shot.orbitSpeedOverride;
@@ -374,11 +389,94 @@ public class CutsceneCompiler : MonoBehaviour
             motionExt.panRadius = Mathf.Max(camToTarget.magnitude, 0.5f);
             motionExt.initialOffset = camObject.transform.position - motionTarget.position;
 
-            Debug.Log($"🎥 VCam_{beat.beat_id} PAN radius={motionExt.panRadius:F2} seeded from spawn pos");
+            Debug.Log($"VCam_{beat.beat_id} PAN radius={motionExt.panRadius:F2} seeded from spawn pos");
         }
 
         cam.Lens.FieldOfView = shot.fov;
         return cam;
+    }
+
+    private void PrePositionActor(
+        Beat beat,
+        Transform actor,
+        Transform focus,
+        Dictionary<string, Vector3> actorPositions)
+    {
+        string key = actor.name;
+
+        if (actorPositions.ContainsKey(key))
+            actor.position = actorPositions[key];
+
+        if (beat.use_char_start_position)
+        {
+            actor.position = new Vector3(
+                beat.char_start_x,
+                beat.char_start_y,
+                beat.char_start_z
+            );
+
+            actor.position = SnapToGround(actor.position, actor);
+        }
+        else if (beat.use_char_end_position)
+        {
+            actor.position = new Vector3(
+                beat.char_end_x,
+                beat.char_end_y,
+                beat.char_end_z
+            );
+
+            actor.position = SnapToGround(actor.position, actor);
+        }
+        else if (focus != null)
+        {
+            Vector3 dir = actor.position - focus.position;
+            dir.y = 0f;
+
+            if (dir.sqrMagnitude < 0.001f)
+                dir = Vector3.forward;
+
+            dir.Normalize();
+
+            Vector3 dest = focus.position + dir * walkStopDistance;
+            actor.position = SnapToGround(dest, actor);
+        }
+
+        if (beat.use_char_facing)
+        {
+            actor.rotation = Quaternion.Euler(0, beat.char_facing_y, 0);
+        }
+        else if (focus != null)
+        {
+            Vector3 lookDir = focus.position - actor.position;
+            lookDir.y = 0;
+
+            if (lookDir != Vector3.zero)
+                actor.rotation = Quaternion.LookRotation(lookDir);
+        }
+
+        actorPositions[key] = actor.position;
+    }
+
+    private Vector3 SnapToGround(Vector3 position, Transform actor)
+    {
+        if (!snapGeneratedCharacterPositionsToGround)
+            return position;
+
+        Vector3 rayStart = new Vector3(
+            position.x,
+            position.y + characterGroundRaycastHeight,
+            position.z
+        );
+
+        if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, characterGroundRaycastDistance, characterGroundMask))
+        {
+            if (hit.transform == actor || hit.transform.IsChildOf(actor))
+                return position;
+
+            position.y = hit.point.y + characterGroundOffset;
+        }
+
+        return position;
     }
 
     private bool IsVirtualAnchor(Transform target)
@@ -413,7 +511,7 @@ public class CutsceneCompiler : MonoBehaviour
             }
         }
 
-        Debug.Log($"🌀 VCam_{beat.beat_id} ORBIT radius={ext.orbitRadius} anchor={ext.worldAnchor} height={ext.initialOffset.y}");
+        Debug.Log($"VCam_{beat.beat_id} ORBIT radius={ext.orbitRadius} anchor={ext.worldAnchor} height={ext.initialOffset.y}");
     }
 
     private CinemachineMotionExtension.MotionType MapMotionType(string movement)
@@ -440,64 +538,6 @@ public class CutsceneCompiler : MonoBehaviour
         }
     }
 
-    private void PrePositionActor(
-        Beat beat,
-        Transform actor,
-        Transform focus,
-        Dictionary<string, Vector3> actorPositions)
-    {
-        string key = actor.name;
-
-        if (actorPositions.ContainsKey(key))
-            actor.position = actorPositions[key];
-
-        // IMPORTANT:
-        // For camera generation, use START position first.
-        // Runtime mover handles start → end movement later.
-        if (beat.use_char_start_position)
-        {
-            actor.position = new Vector3(
-                beat.char_start_x,
-                beat.char_start_y,
-                beat.char_start_z
-            );
-        }
-        else if (beat.use_char_end_position)
-        {
-            actor.position = new Vector3(
-                beat.char_end_x,
-                beat.char_end_y,
-                beat.char_end_z
-            );
-        }
-        else if (focus != null)
-        {
-            Vector3 dir = (actor.position - focus.position).normalized;
-
-            if (dir == Vector3.zero)
-                dir = Vector3.forward;
-
-            Vector3 dest = focus.position + dir * walkStopDistance;
-            dest.y = actor.position.y;
-            actor.position = dest;
-        }
-
-        if (beat.use_char_facing)
-        {
-            actor.rotation = Quaternion.Euler(0, beat.char_facing_y, 0);
-        }
-        else if (focus != null)
-        {
-            Vector3 lookDir = focus.position - actor.position;
-            lookDir.y = 0;
-
-            if (lookDir != Vector3.zero)
-                actor.rotation = Quaternion.LookRotation(lookDir);
-        }
-
-        actorPositions[key] = actor.position;
-    }
-
     private bool ValidateDependencies()
     {
         if (beatScriptLoader == null ||
@@ -507,7 +547,7 @@ public class CutsceneCompiler : MonoBehaviour
             timelineBuilder == null ||
             playableDirector == null)
         {
-            Debug.LogError("❌ Missing references on CutsceneCompiler!");
+            Debug.LogError("Missing references on CutsceneCompiler.");
             return false;
         }
 

@@ -1,23 +1,6 @@
 ﻿using UnityEngine;
 using Unity.Cinemachine;
 
-/// <summary>
-/// Universal camera safety validator.
-///
-/// This is not story-specific and not tied to Uncle Ben, feet, or the rock.
-/// It validates any generated Cinemachine camera using scene geometry.
-///
-/// It fixes common procedural camera problems:
-/// - Camera below terrain/ground
-/// - Camera too close to target
-/// - Camera looking too far upward into the sky
-/// - Camera placed under the target
-///
-/// Important:
-/// This validator must also update CinemachineMotionExtension.initialOffset.
-/// Otherwise, CinemachineMotionExtension can reapply the old unsafe offset
-/// during Timeline playback or scrubbing.
-/// </summary>
 public class CameraSafetyValidator : MonoBehaviour
 {
     [Header("General Safety")]
@@ -52,7 +35,7 @@ public class CameraSafetyValidator : MonoBehaviour
         if (target == null)
         {
             if (enableDebugLogs)
-                Debug.LogWarning($"⚠ CameraSafetyValidator: No target found for {cam.name}");
+                Debug.LogWarning($"CameraSafetyValidator: No target found for {cam.name}");
 
             return;
         }
@@ -86,14 +69,14 @@ public class CameraSafetyValidator : MonoBehaviour
             if (movedDistance > 0.01f || rotatedAngle > 0.5f)
             {
                 Debug.Log(
-                    $"🛡 Camera safety adjusted {cam.name}: " +
-                    $"pos {originalPosition} → {safePosition}, " +
+                    $"Camera safety adjusted {cam.name}: " +
+                    $"pos {originalPosition} -> {safePosition}, " +
                     $"rotated {rotatedAngle:F2} degrees"
                 );
             }
             else
             {
-                Debug.Log($"✅ Camera safety checked {cam.name}: no correction needed");
+                Debug.Log($"Camera safety checked {cam.name}: no correction needed");
             }
         }
     }
@@ -151,12 +134,14 @@ public class CameraSafetyValidator : MonoBehaviour
             return;
 
         motionExtension.initialOffset = safePosition - motionTarget.position;
-        motionExtension.useWorldAnchor = false;
+
+        if (motionExtension.motionType != CinemachineMotionExtension.MotionType.Orbit)
+            motionExtension.useWorldAnchor = false;
 
         if (enableDebugLogs)
         {
             Debug.Log(
-                $"🔁 CameraSafetyValidator synced {cam.name} motion offset: " +
+                $"CameraSafetyValidator synced {cam.name} motion offset: " +
                 $"initialOffset = {motionExtension.initialOffset}"
             );
         }

@@ -6,16 +6,6 @@ using UnityEngine.Playables;
 using UnityEditor;
 #endif
 
-/// <summary>
-/// Attached to the same GameObject as PlayableDirector.
-/// It reads the move schedule built by CutsceneCompiler and translates characters
-/// along their paths using the current PlayableDirector time.
-///
-/// Important:
-/// - Works during normal Play mode playback.
-/// - Also works while scrubbing/previewing the Timeline in the Unity Editor.
-/// - Root motion is disabled so this script owns character world movement.
-/// </summary>
 [ExecuteAlways]
 public class CutsceneCharacterMover : MonoBehaviour
 {
@@ -23,6 +13,13 @@ public class CutsceneCharacterMover : MonoBehaviour
     public List<CharacterMoveData> moveSchedule = new List<CharacterMoveData>();
 
     public PlayableDirector playableDirector;
+
+    [Header("Ground Safety")]
+    public bool snapCharacterToGround = true;
+    public LayerMask groundMask = ~0;
+    public float groundRaycastHeight = 10.0f;
+    public float groundRaycastDistance = 50.0f;
+    public float groundOffset = 0.02f;
 
     [Header("Debug")]
     public bool enableDebugLogs = false;
@@ -67,7 +64,7 @@ public class CutsceneCharacterMover : MonoBehaviour
                 anim.applyRootMotion = false;
 
                 if (enableDebugLogs)
-                    Debug.Log($"🔒 Root motion disabled on: {data.characterName}");
+                    Debug.Log($"Root motion disabled on: {data.characterName}");
             }
         }
     }
@@ -104,11 +101,8 @@ public class CutsceneCharacterMover : MonoBehaviour
 #if UNITY_EDITOR
         if (!Application.isPlaying)
         {
-            // In editor preview/scrub mode, Timeline changes playableDirector.time
-            // without entering PlayState.Playing. So we still apply movement.
             if (!EditorApplication.isPlayingOrWillChangePlaymode)
             {
-                // Avoid applying twice for the same timeline time while editor is idle.
                 if (Mathf.Approximately((float)directorTime, (float)lastAppliedTime))
                     return;
             }
@@ -139,7 +133,7 @@ public class CutsceneCharacterMover : MonoBehaviour
             if (actor == null)
             {
                 if (enableDebugLogs)
-                    Debug.LogWarning($"⚠ Character mover could not find actor: {data.characterName}");
+                    Debug.LogWarning($"Character mover could not find actor: {data.characterName}");
 
                 continue;
             }
@@ -154,33 +148,56 @@ public class CutsceneCharacterMover : MonoBehaviour
         float t = Mathf.Clamp01((now - data.startTime) / safeDuration);
         float smoothT = Mathf.SmoothStep(0f, 1f, t);
 
+        Vector3 finalPosition;
+
         if (data.shouldMove)
         {
-            actor.position = Vector3.Lerp(data.startPosition, data.endPosition, smoothT);
+            finalPosition = Vector3.Lerp(data.startPosition, data.endPosition, smoothT);
 
             Vector3 dir = data.endPosition - data.startPosition;
             dir.y = 0f;
 
             if (dir.sqrMagnitude > 0.001f)
                 actor.rotation = Quaternion.LookRotation(dir.normalized);
-
-            if (enableDebugLogs)
-            {
-                Debug.Log(
-                    $"🚶 Moving {data.characterName} time={now:F2} t={t:F2} " +
-                    $"from={data.startPosition} to={data.endPosition}"
-                );
-            }
         }
         else
         {
-            actor.position = data.startPosition;
+            finalPosition = data.startPosition;
 
             if (data.facingY >= 0f)
                 actor.rotation = Quaternion.Euler(0f, data.facingY, 0f);
-
-            if (enableDebugLogs)
-                Debug.Log($"🧍 Holding {data.characterName} at {data.startPosition}");
         }
+
+        if (snapCharacterToGround)
+            finalPosition = SnapPositionToGround(finalPosition, actor);
+
+        actor.position = finalPosition;
+
+        if (enableDebugLogs)
+        {
+            Debug.Log(
+                $"{data.characterName} position applied at time={now:F2}, " +
+                $"position={finalPosition}, shouldMove={data.shouldMove}"
+            );
+        }
+    }
+
+    private Vector3 SnapPositionToGround(Vector3 position, Transform actor)
+    {
+        Vector3 rayStart = new Vector3(
+            position.x,
+            position.y + groundRaycastHeight,
+            position.z
+        );
+
+        if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, groundRaycastDistance, groundMask))
+        {
+            if (hit.transform == actor || hit.transform.IsChildOf(actor))
+                return position;
+
+            position.y = hit.point.y + groundOffset;
+        }
+
+        return position;
     }
 }
