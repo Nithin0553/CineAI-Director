@@ -14,12 +14,9 @@ public class CutsceneCharacterMover : MonoBehaviour
 
     public PlayableDirector playableDirector;
 
-    [Header("Ground Safety")]
+    [Header("Universal Ground Safety")]
     public bool snapCharacterToGround = true;
     public LayerMask groundMask = ~0;
-    public float groundRaycastHeight = 10.0f;
-    public float groundRaycastDistance = 50.0f;
-    public float groundOffset = 0.02f;
 
     [Header("Debug")]
     public bool enableDebugLogs = false;
@@ -60,12 +57,7 @@ public class CutsceneCharacterMover : MonoBehaviour
             Animator anim = actor.GetComponent<Animator>();
 
             if (anim != null)
-            {
                 anim.applyRootMotion = false;
-
-                if (enableDebugLogs)
-                    Debug.Log($"Root motion disabled on: {data.characterName}");
-            }
         }
     }
 
@@ -144,7 +136,7 @@ public class CutsceneCharacterMover : MonoBehaviour
 
     private void ApplyMoveData(Transform actor, CharacterMoveData data, float now)
     {
-        float safeDuration = Mathf.Max(data.duration, 0.001f);
+        float safeDuration = Mathf.Max(data.duration, Mathf.Epsilon);
         float t = Mathf.Clamp01((now - data.startTime) / safeDuration);
         float smoothT = Mathf.SmoothStep(0f, 1f, t);
 
@@ -157,7 +149,7 @@ public class CutsceneCharacterMover : MonoBehaviour
             Vector3 dir = data.endPosition - data.startPosition;
             dir.y = 0f;
 
-            if (dir.sqrMagnitude > 0.001f)
+            if (dir.sqrMagnitude > Mathf.Epsilon)
                 actor.rotation = Quaternion.LookRotation(dir.normalized);
         }
         else
@@ -168,36 +160,157 @@ public class CutsceneCharacterMover : MonoBehaviour
                 actor.rotation = Quaternion.Euler(0f, data.facingY, 0f);
         }
 
-        if (snapCharacterToGround)
-            finalPosition = SnapPositionToGround(finalPosition, actor);
-
         actor.position = finalPosition;
+
+        if (snapCharacterToGround)
+            SnapActorVisualBottomToGround(actor);
 
         if (enableDebugLogs)
         {
             Debug.Log(
-                $"{data.characterName} position applied at time={now:F2}, " +
-                $"position={finalPosition}, shouldMove={data.shouldMove}"
+                $"{data.characterName} applied at time={now:F2}, root={actor.position}"
             );
         }
     }
 
-    private Vector3 SnapPositionToGround(Vector3 position, Transform actor)
+    private void SnapActorVisualBottomToGround(Transform actor)
     {
+        Bounds actorBounds;
+
+        if (!TryGetActorVisualBounds(actor, out actorBounds))
+            return;
+
+        float groundY;
+
+        if (!TryFindGroundY(actor, actorBounds, out groundY))
+            return;
+
+        actorBounds = RecalculateBoundsAfterPossibleAnimation(actor, actorBounds);
+
+        float visualBottomY = actorBounds.min.y;
+        float correctionY = groundY - visualBottomY;
+
+        actor.position += Vector3.up * correctionY;
+
+        if (enableDebugLogs)
+        {
+            Debug.Log(
+                $"Ground snap {actor.name}: groundY={groundY:F3}, " +
+                $"visualBottomY={visualBottomY:F3}, correctionY={correctionY:F3}, " +
+                $"finalRoot={actor.position}"
+            );
+        }
+    }
+
+    private Bounds RecalculateBoundsAfterPossibleAnimation(Transform actor, Bounds fallbackBounds)
+    {
+        Bounds recalculated;
+
+        if (TryGetActorVisualBounds(actor, out recalculated))
+            return recalculated;
+
+        return fallbackBounds;
+    }
+
+    private bool TryFindGroundY(Transform actor, Bounds actorBounds, out float groundY)
+    {
+        groundY = actor.position.y;
+
+        float actorHeight = Mathf.Max(actorBounds.size.y, Mathf.Epsilon);
+        float rayStartY = actorBounds.max.y + actorHeight;
+        float rayDistance = actorHeight * 3.0f;
+
         Vector3 rayStart = new Vector3(
-            position.x,
-            position.y + groundRaycastHeight,
-            position.z
+            actorBounds.center.x,
+            rayStartY,
+            actorBounds.center.z
         );
 
-        if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, groundRaycastDistance, groundMask))
+        RaycastHit[] hits = Physics.RaycastAll(
+            rayStart,
+            Vector3.down,
+            rayDistance,
+            groundMask
+        );
+
+        if (hits == null || hits.Length == 0)
+            return false;
+
+        bool foundGround = false;
+        float nearestGroundYBelowActor = float.NegativeInfinity;
+
+        foreach (RaycastHit hit in hits)
         {
             if (hit.transform == actor || hit.transform.IsChildOf(actor))
-                return position;
+                continue;
 
-            position.y = hit.point.y + groundOffset;
+            if (hit.point.y > actorBounds.min.y)
+                continue;
+
+            if (hit.point.y > nearestGroundYBelowActor)
+            {
+                nearestGroundYBelowActor = hit.point.y;
+                foundGround = true;
+            }
         }
 
-        return position;
+        if (!foundGround)
+            return false;
+
+        groundY = nearestGroundYBelowActor;
+        return true;
+    }
+
+    private bool TryGetActorVisualBounds(Transform actor, out Bounds bounds)
+    {
+        Renderer[] renderers = actor.GetComponentsInChildren<Renderer>();
+
+        bounds = new Bounds(actor.position, Vector3.zero);
+        bool found = false;
+
+        foreach (Renderer renderer in renderers)
+        {
+            if (renderer == null)
+                continue;
+
+            if (!renderer.enabled)
+                continue;
+
+            if (!found)
+            {
+                bounds = renderer.bounds;
+                found = true;
+            }
+            else
+            {
+                bounds.Encapsulate(renderer.bounds);
+            }
+        }
+
+        if (found)
+            return true;
+
+        Collider[] colliders = actor.GetComponentsInChildren<Collider>();
+
+        foreach (Collider collider in colliders)
+        {
+            if (collider == null)
+                continue;
+
+            if (!collider.enabled)
+                continue;
+
+            if (!found)
+            {
+                bounds = collider.bounds;
+                found = true;
+            }
+            else
+            {
+                bounds.Encapsulate(collider.bounds);
+            }
+        }
+
+        return found;
     }
 }

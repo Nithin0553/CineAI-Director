@@ -1,6 +1,4 @@
-﻿// Assets/Scripts/Timeline/TimelineBuilder.cs
-
-using System.IO;
+﻿using System.IO;
 using UnityEngine;
 using UnityEngine.Playables;
 using UnityEngine.Timeline;
@@ -16,9 +14,6 @@ public class TimelineBuilder : MonoBehaviour
 
     private AnimationLibraryResolver animationResolver;
 
-    // ==============================
-    // CREATE / LOAD TIMELINE
-    // ==============================
     public TimelineAsset CreateTimelineAsset(string timelineName)
     {
 #if UNITY_EDITOR
@@ -42,9 +37,6 @@ public class TimelineBuilder : MonoBehaviour
 #endif
     }
 
-    // ==============================
-    // TRACK CREATION
-    // ==============================
     public AnimationTrack CreateAnimationTrack(TimelineAsset timeline, string trackName)
     {
         return timeline.CreateTrack<AnimationTrack>(null, trackName);
@@ -70,9 +62,6 @@ public class TimelineBuilder : MonoBehaviour
         return timeline.CreateTrack<CinemachineTrack>(null, trackName);
     }
 
-    // ==============================
-    // CLIP ADDERS
-    // ==============================
     public void AddActivationClip(ActivationTrack track, double start, double duration)
     {
         TimelineClip clip = track.CreateDefaultClip();
@@ -87,9 +76,7 @@ public class TimelineBuilder : MonoBehaviour
         double duration,
         string animationName)
     {
-        // Position movement is handled by CutsceneCharacterMover.
-        // Timeline animation clips are used only for body/leg motion.
-        track.trackOffset = TrackOffset.ApplyTransformOffsets;
+        track.trackOffset = TrackOffset.ApplySceneOffsets;
 
         string safeAnimationName = string.IsNullOrWhiteSpace(animationName)
             ? "Idle"
@@ -104,11 +91,11 @@ public class TimelineBuilder : MonoBehaviour
 
         if (asset == null)
         {
-            Debug.LogWarning($"⚠ Could not create AnimationPlayableAsset for '{safeAnimationName}'");
+            Debug.LogWarning($"Could not create AnimationPlayableAsset for '{safeAnimationName}'");
             return;
         }
 
-        asset.applyFootIK = false;
+        asset.applyFootIK = true;
 
         if (animationResolver == null)
             animationResolver = new AnimationLibraryResolver();
@@ -117,17 +104,14 @@ public class TimelineBuilder : MonoBehaviour
 
         if (anim == null)
         {
-            Debug.LogWarning($"⚠ No animation clip assigned for '{safeAnimationName}'. Timeline clip will be empty.");
+            Debug.LogWarning($"No animation clip assigned for '{safeAnimationName}'. Timeline clip will be empty.");
             return;
         }
 
         asset.clip = anim;
-        Debug.Log($"✅ Animation clip assigned: requested='{safeAnimationName}' actual='{anim.name}'");
+        Debug.Log($"Animation clip assigned: requested='{safeAnimationName}' actual='{anim.name}'");
     }
 
-    // ==============================
-    // CINEMACHINE SHOTS
-    // ==============================
     public CinemachineShot AddCinemachineShotClip(
         CinemachineTrack track,
         PlayableDirector director,
@@ -156,9 +140,6 @@ public class TimelineBuilder : MonoBehaviour
         return shot;
     }
 
-    // ==============================
-    // SAVE TIMELINE
-    // ==============================
     public void SaveTimeline(TimelineAsset timeline)
     {
 #if UNITY_EDITOR

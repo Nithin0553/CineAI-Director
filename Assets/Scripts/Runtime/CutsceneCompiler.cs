@@ -21,15 +21,9 @@ public class CutsceneCompiler : MonoBehaviour
     [Tooltip("Drag your MainCamera with CinemachineBrain here")]
     public Camera mainCamera;
 
-    [Tooltip("How far in front of the focus target a walking character stops")]
-    public float walkStopDistance = 1.5f;
-
     [Header("Character Ground Safety")]
     public bool snapGeneratedCharacterPositionsToGround = true;
     public LayerMask characterGroundMask = ~0;
-    public float characterGroundRaycastHeight = 10.0f;
-    public float characterGroundRaycastDistance = 50.0f;
-    public float characterGroundOffset = 0.02f;
 
     private readonly List<GameObject> spawnedCameraObjects = new List<GameObject>();
 
@@ -86,8 +80,8 @@ public class CutsceneCompiler : MonoBehaviour
 
             if (action.useExactStartPosition && speaker != null)
             {
-                speaker.position = SnapToGround(action.exactStartPosition, speaker);
-                Debug.Log($"Beat {beat.beat_id} snapped {speaker.name} to START {speaker.position}");
+                speaker.position = action.exactStartPosition;
+                Debug.Log($"Beat {beat.beat_id} set {speaker.name} START from beat script: {speaker.position}");
             }
 
             if (action.useExactFacing && speaker != null)
@@ -170,9 +164,6 @@ public class CutsceneCompiler : MonoBehaviour
         mover.moveSchedule = moveSchedule;
         mover.snapCharacterToGround = snapGeneratedCharacterPositionsToGround;
         mover.groundMask = characterGroundMask;
-        mover.groundRaycastHeight = characterGroundRaycastHeight;
-        mover.groundRaycastDistance = characterGroundRaycastDistance;
-        mover.groundOffset = characterGroundOffset;
         mover.DisableRootMotionOnAllActors();
 
         Debug.Log($"CUTSCENE GENERATED — {moveSchedule.Count} character move entries");
@@ -185,48 +176,22 @@ public class CutsceneCompiler : MonoBehaviour
         Transform focus,
         double currentTime)
     {
-        bool shouldMove = beat.use_char_end_position;
-
         CharacterMoveData moveData = new CharacterMoveData();
         moveData.characterName = speaker.name;
         moveData.startTime = (float)currentTime;
         moveData.duration = beat.duration;
         moveData.facingY = action.useExactFacing ? action.exactFacingY : -1f;
-        moveData.shouldMove = shouldMove;
+        moveData.shouldMove = action.useExactEndPosition;
 
         if (action.useExactStartPosition)
-            moveData.startPosition = SnapToGround(action.exactStartPosition, speaker);
+            moveData.startPosition = action.exactStartPosition;
         else
-            moveData.startPosition = SnapToGround(speaker.position, speaker);
+            moveData.startPosition = speaker.position;
 
-        if (shouldMove)
-        {
-            if (action.useExactEndPosition)
-            {
-                moveData.endPosition = SnapToGround(action.exactEndPosition, speaker);
-            }
-            else if (focus != null)
-            {
-                Vector3 dir = speaker.position - focus.position;
-                dir.y = 0f;
-
-                if (dir.sqrMagnitude < 0.001f)
-                    dir = Vector3.forward;
-
-                dir.Normalize();
-
-                moveData.endPosition = focus.position + dir * walkStopDistance;
-                moveData.endPosition = SnapToGround(moveData.endPosition, speaker);
-            }
-            else
-            {
-                moveData.endPosition = moveData.startPosition;
-            }
-        }
+        if (action.useExactEndPosition)
+            moveData.endPosition = action.exactEndPosition;
         else
-        {
             moveData.endPosition = moveData.startPosition;
-        }
 
         return moveData;
     }
@@ -386,7 +351,7 @@ public class CutsceneCompiler : MonoBehaviour
             Vector3 camToTarget = camObject.transform.position - motionTarget.position;
             camToTarget.y = 0;
 
-            motionExt.panRadius = Mathf.Max(camToTarget.magnitude, 0.5f);
+            motionExt.panRadius = Mathf.Max(camToTarget.magnitude, Mathf.Epsilon);
             motionExt.initialOffset = camObject.transform.position - motionTarget.position;
 
             Debug.Log($"VCam_{beat.beat_id} PAN radius={motionExt.panRadius:F2} seeded from spawn pos");
@@ -414,8 +379,6 @@ public class CutsceneCompiler : MonoBehaviour
                 beat.char_start_y,
                 beat.char_start_z
             );
-
-            actor.position = SnapToGround(actor.position, actor);
         }
         else if (beat.use_char_end_position)
         {
@@ -424,21 +387,6 @@ public class CutsceneCompiler : MonoBehaviour
                 beat.char_end_y,
                 beat.char_end_z
             );
-
-            actor.position = SnapToGround(actor.position, actor);
-        }
-        else if (focus != null)
-        {
-            Vector3 dir = actor.position - focus.position;
-            dir.y = 0f;
-
-            if (dir.sqrMagnitude < 0.001f)
-                dir = Vector3.forward;
-
-            dir.Normalize();
-
-            Vector3 dest = focus.position + dir * walkStopDistance;
-            actor.position = SnapToGround(dest, actor);
         }
 
         if (beat.use_char_facing)
@@ -457,28 +405,6 @@ public class CutsceneCompiler : MonoBehaviour
         actorPositions[key] = actor.position;
     }
 
-    private Vector3 SnapToGround(Vector3 position, Transform actor)
-    {
-        if (!snapGeneratedCharacterPositionsToGround)
-            return position;
-
-        Vector3 rayStart = new Vector3(
-            position.x,
-            position.y + characterGroundRaycastHeight,
-            position.z
-        );
-
-        if (Physics.Raycast(rayStart, Vector3.down, out RaycastHit hit, characterGroundRaycastDistance, characterGroundMask))
-        {
-            if (hit.transform == actor || hit.transform.IsChildOf(actor))
-                return position;
-
-            position.y = hit.point.y + characterGroundOffset;
-        }
-
-        return position;
-    }
-
     private bool IsVirtualAnchor(Transform target)
     {
         return target != null && target.name.Contains("_ANCHOR");
@@ -494,7 +420,7 @@ public class CutsceneCompiler : MonoBehaviour
             Vector3 toCam = shot.exactPosition - shot.lookTarget.position;
             float horizDist = new Vector2(toCam.x, toCam.z).magnitude;
 
-            ext.orbitRadius = horizDist > 0.1f ? horizDist : 15f;
+            ext.orbitRadius = Mathf.Max(horizDist, Mathf.Epsilon);
             ext.initialOffset = new Vector3(0f, toCam.y, 0f);
         }
         else
@@ -506,7 +432,7 @@ public class CutsceneCompiler : MonoBehaviour
                 ext.useWorldAnchor = false;
 
                 float xzRadius = new Vector2(shot.offset.x, shot.offset.z).magnitude;
-                ext.orbitRadius = xzRadius > 0.1f ? xzRadius : 15f;
+                ext.orbitRadius = Mathf.Max(xzRadius, Mathf.Epsilon);
                 ext.initialOffset = new Vector3(0f, shot.offset.y, 0f);
             }
         }
