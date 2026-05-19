@@ -45,6 +45,7 @@ class BeatPlan:
     duration: float
     transition: str
     raw_camera: Optional[Dict[str, Any]]
+    raw_character: Optional[Dict[str, Any]]
 
 
 @dataclass
@@ -71,15 +72,155 @@ class CameraPlan:
     force_world_position: bool = False
 
 
+class SceneContextHelper:
+    def __init__(self, scene_context: Dict[str, Any]) -> None:
+        self.scene_context = scene_context
+
+    def character_names(self) -> List[str]:
+        names = self.scene_context.get("character_names")
+        if isinstance(names, list) and names:
+            return [str(n) for n in names]
+
+        old = self.scene_context.get("characters", [])
+        if old and isinstance(old[0], str):
+            return [str(n) for n in old]
+
+        if old and isinstance(old[0], dict):
+            return [str(c.get("name", "")) for c in old if c.get("name")]
+
+        return []
+
+    def object_names(self) -> List[str]:
+        names = self.scene_context.get("object_names")
+        if isinstance(names, list) and names:
+            return [str(n) for n in names]
+
+        old = self.scene_context.get("objects", [])
+        if old and isinstance(old[0], str):
+            return [str(n) for n in old]
+
+        if old and isinstance(old[0], dict):
+            return [str(o.get("name", "")) for o in old if o.get("name")]
+
+        return []
+
+    def locations(self) -> List[str]:
+        locs = self.scene_context.get("locations", [])
+        return [str(l) for l in locs] if isinstance(locs, list) else []
+
+    def get_entity(self, name: str) -> Optional[Dict[str, Any]]:
+        for group in ("characters", "objects", "environment_surfaces"):
+            items = self.scene_context.get(group, [])
+            if not isinstance(items, list):
+                continue
+
+            for item in items:
+                if isinstance(item, dict) and self._same_name(str(item.get("name", "")), name):
+                    return item
+
+        return None
+
+    def character_ground_position(self, name: str) -> Optional[Vector3]:
+        entity = self.get_entity(name)
+        if not entity:
+            return self._old_default_character_start()
+
+        for key in ("estimated_feet_position", "ground_position", "bottom_center", "visual_position", "bounds_center", "transform_position"):
+            vec = self._vec_from_entity(entity, key)
+            if vec:
+                return vec
+
+        return self._old_default_character_start()
+
+    def object_visual_position(self, name: str) -> Optional[Vector3]:
+        entity = self.get_entity(name)
+        if not entity:
+            return self._old_default_object_position()
+
+        for key in ("visual_position", "bounds_center", "ground_position", "bottom_center", "transform_position"):
+            vec = self._vec_from_entity(entity, key)
+            if vec:
+                return vec
+
+        return self._old_default_object_position()
+
+    def object_ground_position(self, name: str) -> Optional[Vector3]:
+        entity = self.get_entity(name)
+        if entity:
+            for key in ("ground_position", "bottom_center", "visual_position", "bounds_center", "transform_position"):
+                vec = self._vec_from_entity(entity, key)
+                if vec:
+                    return vec
+
+        return self._old_default_object_position()
+
+    def nearest_ground_to(self, point: Vector3) -> Optional[Vector3]:
+        samples = self.scene_context.get("ground_samples", [])
+        best = None
+        best_dist = float("inf")
+
+        if isinstance(samples, list):
+            for sample in samples:
+                if not isinstance(sample, dict):
+                    continue
+
+                vec = self._vec(sample.get("world_position"))
+                if not vec:
+                    continue
+
+                d = self._horizontal_distance(point, vec)
+                if d < best_dist:
+                    best_dist = d
+                    best = vec
+
+        return best
+
+    def _old_default_character_start(self) -> Optional[Vector3]:
+        return self._vec(self.scene_context.get("default_character_start"))
+
+    def _old_default_object_position(self) -> Optional[Vector3]:
+        return self._vec(self.scene_context.get("default_object_position"))
+
+    @staticmethod
+    def _same_name(a: str, b: str) -> bool:
+        return SceneContextHelper._norm(a) == SceneContextHelper._norm(b)
+
+    @staticmethod
+    def _norm(value: str) -> str:
+        return value.strip().lower().replace("_", "").replace(" ", "").replace("-", "")
+
+    @staticmethod
+    def _vec_from_entity(entity: Dict[str, Any], key: str) -> Optional[Vector3]:
+        return SceneContextHelper._vec(entity.get(key))
+
+    @staticmethod
+    def _vec(data: Any) -> Optional[Vector3]:
+        if not isinstance(data, dict):
+            return None
+
+        if not all(k in data for k in ("x", "y", "z")):
+            return None
+
+        return Vector3(float(data["x"]), float(data["y"]), float(data["z"]))
+
+    @staticmethod
+    def _horizontal_distance(a: Vector3, b: Vector3) -> float:
+        dx = a.x - b.x
+        dz = a.z - b.z
+        return sqrt(dx * dx + dz * dz)
+
+
 class StoryUnderstandingAgent:
     def analyze(self, scene_context: Dict[str, Any], story: str) -> StoryAnalysis:
-        characters = scene_context.get("characters", [])
-        objects = scene_context.get("objects", [])
-        locations = scene_context.get("locations", [])
+        helper = SceneContextHelper(scene_context)
+
+        characters = helper.character_names()
+        objects = helper.object_names()
+        locations = helper.locations()
 
         main_character = characters[0] if characters else "CHARACTER"
         main_object = objects[0] if objects else "OBJECT"
-        location = locations[0] if locations else "LOCATION"
+        location = locations[0] if locations else scene_context.get("scene_name", "LOCATION")
         dialogue = self._extract_dialogue_or_default(story)
 
         return StoryAnalysis(
@@ -183,6 +324,7 @@ class DirectorAgent:
                     duration=float(raw.get("duration", 4.0)),
                     transition=str(raw.get("transition", "cut")),
                     raw_camera=raw.get("camera") if isinstance(raw.get("camera"), dict) else None,
+                    raw_character=raw.get("character") if isinstance(raw.get("character"), dict) else None,
                 )
             )
 
@@ -190,102 +332,130 @@ class DirectorAgent:
 
 
 class BlockingAgent:
-    """
-    Dynamic scene-aware blocking.
-
-    It no longer uses a fixed lane. It computes the character path relative to
-    the target object position, so it can work for other scenes/games too.
-    """
-
     def create_blocking(
             self,
             beat_plan: BeatPlan,
             analysis: StoryAnalysis,
             scene_context: Dict[str, Any],
     ) -> Optional[BlockingPlan]:
-        character_name = analysis.main_character
-
-        if beat_plan.speaker != character_name:
+        if beat_plan.speaker != analysis.main_character:
             return None
 
-        object_pos = self._vec(
-            scene_context.get("default_object_position", {"x": -5.0, "y": 0.0, "z": -3.0})
+        if beat_plan.raw_character:
+            parsed = self._blocking_from_llm_character(beat_plan.raw_character, analysis)
+            if parsed:
+                return parsed
+
+        helper = SceneContextHelper(scene_context)
+
+        character_start = helper.character_ground_position(analysis.main_character)
+        object_position = helper.object_ground_position(analysis.main_object)
+
+        if character_start is None or object_position is None:
+            return None
+
+        direction = self._horizontal_direction_from_object_to_start(
+            object_pos=object_position,
+            scene_start=character_start,
         )
 
-        scene_start = self._vec(
-            scene_context.get("default_character_start", {"x": -5.0, "y": 0.0, "z": 12.0})
-        )
+        scene_distance = self._horizontal_distance(character_start, object_position)
 
-        stop_distance = float(scene_context.get("approach_stop_distance", 2.0))
-        middle_distance = float(scene_context.get("approach_middle_distance", 6.0))
-        start_distance = float(scene_context.get("approach_start_distance", 12.0))
+        if scene_distance <= MathfLike.epsilon():
+            start_position = character_start
+            end_position = character_start
+        else:
+            start_position = character_start
+            end_position = self._interpolate_horizontal(
+                start=character_start,
+                end=object_position,
+                t=self._intent_progress(beat_plan.intent),
+            )
 
-        approach_dir = self._horizontal_direction_from_object_to_start(
-            object_pos=object_pos,
-            scene_start=scene_start,
-        )
-
-        approach_start = self._point_from_object(object_pos, approach_dir, start_distance, scene_start.y)
-        approach_middle = self._point_from_object(object_pos, approach_dir, middle_distance, scene_start.y)
-        approach_end = self._point_from_object(object_pos, approach_dir, stop_distance, scene_start.y)
+            nearest_ground = helper.nearest_ground_to(end_position)
+            if nearest_ground:
+                end_position.y = nearest_ground.y
 
         facing_y = self._yaw_toward(
-            from_pos=approach_end,
-            to_pos=object_pos,
+            from_pos=end_position,
+            to_pos=object_position,
         )
 
-        if beat_plan.intent == "approach" and beat_plan.target_role == "feet":
-            return BlockingPlan(
-                character_name=character_name,
-                animation="Walk",
-                start_position=approach_start,
-                end_position=approach_middle,
-                facing_y=facing_y,
-                move_speed=1.0,
-            )
-
-        if beat_plan.intent == "approach":
-            return BlockingPlan(
-                character_name=character_name,
-                animation="Walk",
-                start_position=approach_middle,
-                end_position=approach_end,
-                facing_y=facing_y,
-                move_speed=0.8,
-            )
-
-        if beat_plan.intent in {"reveal", "observe", "insert"}:
-            return BlockingPlan(
-                character_name=character_name,
-                animation="Idle",
-                start_position=approach_end,
-                end_position=None,
-                facing_y=facing_y,
-                move_speed=None,
-            )
-
-        if beat_plan.intent in {"question", "react", "dialogue"}:
-            return BlockingPlan(
-                character_name=character_name,
-                animation="Reaction",
-                start_position=approach_end,
-                end_position=None,
-                facing_y=facing_y,
-                move_speed=None,
-            )
+        animation = self._animation_for_intent(beat_plan.intent, beat_plan.action)
+        should_move = beat_plan.intent == "approach"
 
         return BlockingPlan(
-            character_name=character_name,
-            animation="Idle",
-            start_position=approach_end,
-            end_position=None,
+            character_name=analysis.main_character,
+            animation=animation,
+            start_position=start_position,
+            end_position=end_position if should_move else None,
             facing_y=facing_y,
             move_speed=None,
         )
 
+    def _blocking_from_llm_character(
+            self,
+            raw_character: Dict[str, Any],
+            analysis: StoryAnalysis,
+    ) -> Optional[BlockingPlan]:
+        name = str(raw_character.get("name") or analysis.main_character)
+        animation = str(raw_character.get("animation") or "Idle")
+
+        start = self._vec(raw_character.get("start_position"))
+        end = self._vec(raw_character.get("end_position"))
+
+        facing = raw_character.get("facing_y")
+        facing_y = float(facing) if facing is not None else None
+
+        speed = raw_character.get("move_speed")
+        move_speed = float(speed) if speed is not None else None
+
+        return BlockingPlan(
+            character_name=name,
+            animation=animation,
+            start_position=start,
+            end_position=end,
+            facing_y=facing_y,
+            move_speed=move_speed,
+        )
+
     @staticmethod
-    def _vec(data: Dict[str, Any]) -> Vector3:
+    def _vec(data: Any) -> Optional[Vector3]:
+        if not isinstance(data, dict):
+            return None
+
+        if not all(k in data for k in ("x", "y", "z")):
+            return None
+
         return Vector3(float(data["x"]), float(data["y"]), float(data["z"]))
+
+    @staticmethod
+    def _animation_for_intent(intent: str, action: str) -> str:
+        text = f"{intent} {action}".lower()
+
+        if "walk" in text or "approach" in text or "move" in text:
+            return "Walking"
+
+        if "run" in text:
+            return "Running"
+
+        if "react" in text or "confused" in text or "shock" in text:
+            return "Reaction"
+
+        return "Idle"
+
+    @staticmethod
+    def _intent_progress(intent: str) -> float:
+        if intent == "approach":
+            return 0.7
+
+        if intent in {"reveal", "observe", "insert"}:
+            return 0.85
+
+        if intent in {"react", "question", "dialogue"}:
+            return 0.85
+
+        return 0.5
 
     @staticmethod
     def _horizontal_direction_from_object_to_start(object_pos: Vector3, scene_start: Vector3) -> Vector3:
@@ -293,25 +463,31 @@ class BlockingAgent:
         dz = scene_start.z - object_pos.z
         length = sqrt(dx * dx + dz * dz)
 
-        if length < 0.001:
+        if length < MathfLike.epsilon():
             return Vector3(0.0, 0.0, 1.0)
 
         return Vector3(dx / length, 0.0, dz / length)
 
     @staticmethod
-    def _point_from_object(object_pos: Vector3, direction: Vector3, distance: float, y: float) -> Vector3:
+    def _interpolate_horizontal(start: Vector3, end: Vector3, t: float) -> Vector3:
         return Vector3(
-            object_pos.x + direction.x * distance,
-            y,
-            object_pos.z + direction.z * distance,
+            start.x + (end.x - start.x) * t,
+            start.y,
+            start.z + (end.z - start.z) * t,
             )
+
+    @staticmethod
+    def _horizontal_distance(a: Vector3, b: Vector3) -> float:
+        dx = a.x - b.x
+        dz = a.z - b.z
+        return sqrt(dx * dx + dz * dz)
 
     @staticmethod
     def _yaw_toward(from_pos: Vector3, to_pos: Vector3) -> float:
         dx = to_pos.x - from_pos.x
         dz = to_pos.z - from_pos.z
 
-        if abs(dx) < 0.001 and abs(dz) < 0.001:
+        if abs(dx) < MathfLike.epsilon() and abs(dz) < MathfLike.epsilon():
             return 0.0
 
         return degrees(atan2(dx, dz))
@@ -395,8 +571,9 @@ class UnitySafetyValidatorAgent:
             script: UniversalBeatScript,
             scene_context: Dict[str, Any],
     ) -> UniversalBeatScript:
-        allowed_characters = set(scene_context.get("characters", []))
-        allowed_objects = set(scene_context.get("objects", []))
+        helper = SceneContextHelper(scene_context)
+        allowed_characters = set(helper.character_names())
+        allowed_objects = set(helper.object_names())
 
         for beat in script.beats:
             if beat.character and beat.character.name not in allowed_characters:
@@ -405,27 +582,18 @@ class UnitySafetyValidatorAgent:
             if beat.speaker and beat.speaker not in allowed_characters:
                 raise ValueError(f"Invalid speaker name in beat {beat.beat_id}: {beat.speaker}")
 
-            if beat.camera.look_at:
+            for target in (beat.camera.look_at, beat.camera.follow):
+                if not target:
+                    continue
+
                 is_anchor_target = (
-                        beat.camera.look_at.endswith("_FEET")
-                        or beat.camera.look_at.endswith("_HEAD")
-                        or beat.camera.look_at.endswith("_BODY")
+                        target.endswith("_FEET")
+                        or target.endswith("_HEAD")
+                        or target.endswith("_BODY")
                 )
 
-                if not is_anchor_target:
-                    if beat.camera.look_at not in allowed_characters and beat.camera.look_at not in allowed_objects:
-                        raise ValueError(f"Invalid look_at target in beat {beat.beat_id}: {beat.camera.look_at}")
-
-            if beat.camera.follow:
-                is_anchor_target = (
-                        beat.camera.follow.endswith("_FEET")
-                        or beat.camera.follow.endswith("_HEAD")
-                        or beat.camera.follow.endswith("_BODY")
-                )
-
-                if not is_anchor_target:
-                    if beat.camera.follow not in allowed_characters and beat.camera.follow not in allowed_objects:
-                        raise ValueError(f"Invalid follow target in beat {beat.beat_id}: {beat.camera.follow}")
+                if not is_anchor_target and target not in allowed_characters and target not in allowed_objects:
+                    raise ValueError(f"Invalid camera target in beat {beat.beat_id}: {target}")
 
         return script
 
@@ -499,13 +667,15 @@ class MultiAgentDirectorBrain:
 
             beats.append(beat)
 
+        helper = SceneContextHelper(scene_context)
+
         script = UniversalBeatScript(
             project="CineAI Director",
             scene_id="scene_001",
             scene_title="Generated Cutscene",
-            characters=scene_context.get("characters", []),
-            objects=scene_context.get("objects", []),
-            locations=scene_context.get("locations", []),
+            characters=helper.character_names(),
+            objects=helper.object_names(),
+            locations=helper.locations(),
             beats=beats,
         )
 
@@ -514,6 +684,12 @@ class MultiAgentDirectorBrain:
 
 class LocalDirectorBrain(MultiAgentDirectorBrain):
     pass
+
+
+class MathfLike:
+    @staticmethod
+    def epsilon() -> float:
+        return 1e-6
 
 
 def universal_script_from_dict(data: Dict[str, Any]) -> UniversalBeatScript:

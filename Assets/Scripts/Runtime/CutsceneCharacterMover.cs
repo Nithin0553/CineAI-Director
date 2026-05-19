@@ -166,11 +166,7 @@ public class CutsceneCharacterMover : MonoBehaviour
             SnapActorVisualBottomToGround(actor);
 
         if (enableDebugLogs)
-        {
-            Debug.Log(
-                $"{data.characterName} applied at time={now:F2}, root={actor.position}"
-            );
-        }
+            Debug.Log($"{data.characterName} applied at time={now:F2}, root={actor.position}");
     }
 
     private void SnapActorVisualBottomToGround(Transform actor)
@@ -178,14 +174,22 @@ public class CutsceneCharacterMover : MonoBehaviour
         Bounds actorBounds;
 
         if (!TryGetActorVisualBounds(actor, out actorBounds))
+        {
+            if (enableDebugLogs)
+                Debug.LogWarning($"Ground snap failed for {actor.name}: no Renderer or Collider bounds found.");
+
             return;
+        }
 
         float groundY;
 
         if (!TryFindGroundY(actor, actorBounds, out groundY))
             return;
 
-        actorBounds = RecalculateBoundsAfterPossibleAnimation(actor, actorBounds);
+        Bounds updatedBounds;
+
+        if (TryGetActorVisualBounds(actor, out updatedBounds))
+            actorBounds = updatedBounds;
 
         float visualBottomY = actorBounds.min.y;
         float correctionY = groundY - visualBottomY;
@@ -200,16 +204,6 @@ public class CutsceneCharacterMover : MonoBehaviour
                 $"finalRoot={actor.position}"
             );
         }
-    }
-
-    private Bounds RecalculateBoundsAfterPossibleAnimation(Transform actor, Bounds fallbackBounds)
-    {
-        Bounds recalculated;
-
-        if (TryGetActorVisualBounds(actor, out recalculated))
-            return recalculated;
-
-        return fallbackBounds;
     }
 
     private bool TryFindGroundY(Transform actor, Bounds actorBounds, out float groundY)
@@ -234,30 +228,58 @@ public class CutsceneCharacterMover : MonoBehaviour
         );
 
         if (hits == null || hits.Length == 0)
+        {
+            if (enableDebugLogs)
+            {
+                Debug.LogWarning(
+                    $"Ground snap failed for {actor.name}: no ground hit. " +
+                    $"rayStart={rayStart}, rayDistance={rayDistance}, " +
+                    $"actorBoundsMinY={actorBounds.min.y}, actorBoundsMaxY={actorBounds.max.y}. " +
+                    $"Check if the terrain/floor has a Collider and if Ground Mask includes its layer."
+                );
+            }
+
             return false;
+        }
 
         bool foundGround = false;
-        float nearestGroundYBelowActor = float.NegativeInfinity;
+        float nearestGroundY = float.NegativeInfinity;
 
         foreach (RaycastHit hit in hits)
         {
             if (hit.transform == actor || hit.transform.IsChildOf(actor))
-                continue;
-
-            if (hit.point.y > actorBounds.min.y)
-                continue;
-
-            if (hit.point.y > nearestGroundYBelowActor)
             {
-                nearestGroundYBelowActor = hit.point.y;
+                if (enableDebugLogs)
+                    Debug.Log($"Ground snap ignored self-hit: {hit.transform.name}");
+
+                continue;
+            }
+
+            if (enableDebugLogs)
+            {
+                Debug.Log(
+                    $"Ground snap ray hit: object={hit.transform.name}, " +
+                    $"layer={LayerMask.LayerToName(hit.transform.gameObject.layer)}, " +
+                    $"point={hit.point}"
+                );
+            }
+
+            if (hit.point.y > nearestGroundY)
+            {
+                nearestGroundY = hit.point.y;
                 foundGround = true;
             }
         }
 
         if (!foundGround)
-            return false;
+        {
+            if (enableDebugLogs)
+                Debug.LogWarning($"Ground snap failed for {actor.name}: hits existed, but all were ignored.");
 
-        groundY = nearestGroundYBelowActor;
+            return false;
+        }
+
+        groundY = nearestGroundY;
         return true;
     }
 

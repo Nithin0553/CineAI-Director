@@ -8,9 +8,8 @@ class DirectorPromptBuilder:
     """
     Builds the prompt sent to the LLM.
 
-    Version 2:
-    The LLM should generate cinematic camera parameters directly.
-    Templates are now only references/fallbacks, not the main output.
+    The LLM must use scene-exported geometry instead of guessing world positions.
+    Unity remains responsible for final physical validation.
     """
 
     def build_prompt(
@@ -27,17 +26,22 @@ You are an AI Film Director for a Unity cutscene generation system.
 
 Your task is to convert a user's natural language story into a structured cinematic beat plan.
 
-IMPORTANT RULES:
+CORE RULES:
 1. Output valid JSON only.
 2. Do not include markdown.
 3. Do not explain anything.
-4. Use only character names from scene_context.characters.
-5. Use only object names from scene_context.objects.
-6. Use 3 to 8 beats depending on story complexity.
-7. Each beat must include a camera object with direct camera parameters.
-8. Do not rely only on templates. Generate camera parameters directly.
-9. Use templates only as style references and fallback guidance.
-10. Use target roles, not hardcoded bone names.
+4. Use only names from scene_context.character_names and scene_context.object_names.
+5. Do not invent characters, objects, locations, animation names, or target names.
+6. Use scene_context geometry for all world-aware decisions.
+7. Prefer visual_position, bounds_center, ground_position, estimated_feet_position, estimated_body_position, and estimated_head_position over raw transform_position.
+8. Do not guess ground height.
+9. Do not place characters or cameras outside scene_bounds unless the story explicitly requires it.
+10. Generate 3 to 8 beats depending on story complexity.
+11. Each beat must include a camera object with direct camera parameters.
+12. Camera values should be cinematic, but physically reasonable for the exported scene.
+13. Use templates only as style references, not as fixed rules.
+14. Use target roles instead of hardcoded bones.
+15. For movement, character start and end positions must come from scene_context ground/visual data or scene-valid interpolation between those points.
 
 VALID target_role / look_at_role / follow_role:
 - character
@@ -69,12 +73,25 @@ VALID movement:
 - truck_left
 - truck_right
 
+POSITION PLANNING RULES:
+- For a character, use estimated_feet_position or ground_position for character movement.
+- For an object, use visual_position or bounds_center for look-at target planning.
+- For head shots, use target_role head.
+- For feet shots, use target_role feet.
+- For body shots, use target_role body.
+- Do not use an object's raw transform_position if visual_position or bounds_center exists.
+- If an object has an unusual transform pivot, use visual_position/bounds_center.
+- If ground_samples exist near an entity, use them to keep character movement on valid ground.
+- Character movement positions must stay on or near valid exported ground samples.
+- If no ground exists near an object, do not move the character to that object. Instead create an observing/reaction shot from a valid character position.
+
 CAMERA PARAMETER GUIDANCE:
-- fov should usually be between 24 and 60.
+- fov should usually be between 24 and 65.
 - close_up should usually use fov 24 to 35.
 - medium_shot should usually use fov 40 to 60.
 - wide_shot should usually use fov 45 to 65.
 - offset is relative to the follow/look target unless force_world_position is true.
+- force_world_position should be false unless the scene_context provides a safe exact world camera position.
 - For establishing object shots, use target_role object, look_at_role object, follow_role null, movement orbit/static.
 - For movement detail shots, use target_role feet, look_at_role feet, follow_role feet, movement follow.
 - For character walking shots, use target_role character, look_at_role character, follow_role character, movement follow.
@@ -106,6 +123,14 @@ OUTPUT JSON SCHEMA:
       "target_role": "character | object | feet | head | body",
       "duration": 3.0,
       "transition": "cut | fade | dissolve | match_cut",
+      "character": {{
+        "name": "character name",
+        "animation": "animation clip name from scene_context",
+        "start_position": {{ "x": 0.0, "y": 0.0, "z": 0.0 }},
+        "end_position": {{ "x": 0.0, "y": 0.0, "z": 0.0 }},
+        "facing_y": 0.0,
+        "move_speed": 1.0
+      }},
       "camera": {{
         "shot_type": "wide_shot",
         "target_role": "object",

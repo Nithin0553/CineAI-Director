@@ -3,23 +3,54 @@
   "scene_id": "scene_001",
   "scene_title": "Generated Cutscene",
   "characters": [
-    "UNCLE_BEN"
+    "UNCLE_BEN",
+    "PlayerCapsule",
+    "NestedParent_Unpack"
   ],
   "objects": [
-    "ROCK"
+    "mixamorig:RightHandThumb4",
+    "mixamorig:RightHandThumb3",
+    "mixamorig:RightHandIndex4",
+    "CineAI_Manager",
+    "mixamorig:LeftHandThumb3",
+    "mixamorig:LeftHandIndex1",
+    "mixamorig:HeadTop_End",
+    "mixamorig:RightHandThumb2",
+    "mixamorig:Shoes_Geo",
+    "mixamorig:RightHandRing4",
+    "mixamorig:RightHandMiddle1",
+    "mixamorig:LeftEye",
+    "mixamorig:RightHandIndex3",
+    "mixamorig:LeftHandMiddle4",
+    "mixamorig:RightHand",
+    "mixamorig:Hips",
+    "Capsule",
+    "mixamorig:Pants_Geo",
+    "mixamorig:Cigar_Geo",
+    "mixamorig:R_Eye_Geo",
+    "mixamorig:Arms_Geo",
+    "VCam_2",
+    "mixamorig:Meshes",
+    "VCam_5",
+    "ROCK",
+    "GeneratedCameras",
+    "UNCLE_BEN_FEET_ANCHOR",
+    "UNCLE_BEN_HEAD_ANCHOR",
+    "ENVIRONMENT",
+    "Global Volume"
   ],
   "locations": [
-    "DefaultLocation"
+    "SampleScene"
   ],
   "beats": [
     {
       "beat_id": 1,
-      "purpose": "Establishing Shot",
+      "purpose": "establish",
       "speaker": "",
       "dialogue": "",
-      "action": "Uncle Ben walks toward the mysterious rock.",
-      "emotion": "neutral",
-      "intent": "establish",
+      "action": "walks toward the mysterious rock",
+      "emotion": "mysterious",
+      "intent": "approach",
       "duration": 3.0,
       "character": null,
       "camera": {
@@ -36,8 +67,8 @@
           "z": 0.0
         },
         "fov": 50.0,
-        "look_at": "ROCK",
-        "follow": "ROCK",
+        "look_at": "mixamorig:RightHandThumb4",
+        "follow": "mixamorig:RightHandThumb4",
         "offset": {
           "x": 0.0,
           "y": 4.0,
@@ -45,7 +76,7 @@
         },
         "movement": {
           "type": "orbit",
-          "target": "ROCK",
+          "target": "mixamorig:RightHandThumb4",
           "speed": 5.0,
           "radius": 7.0
         },
@@ -67,19 +98,19 @@
       "duration": 4.0,
       "character": {
         "name": "UNCLE_BEN",
-        "animation": "Walk",
+        "animation": "Walking",
         "start_position": {
-          "x": 537.4695929338816,
-          "y": -0.174591064453125,
-          "z": 451.56662685118977
+          "x": 545.0568237304688,
+          "y": -1.7819314002990723,
+          "z": 457.8914794921875
         },
         "end_position": {
-          "x": 542.0791873360814,
-          "y": -0.174591064453125,
-          "z": 455.4074131570402
+          "x": 163.51704711914067,
+          "y": 312.720703125,
+          "z": 137.36744384765626
         },
-        "facing_y": 50.19840766540554,
-        "move_speed": 1.0
+        "facing_y": -130.0329553987204,
+        "move_speed": null
       },
       "camera": {
         "name": "VCam_2",
@@ -117,28 +148,28 @@
     },
     {
       "beat_id": 3,
-      "purpose": "Character Approach",
+      "purpose": "Show UNCLE_BEN moving through the scene.",
       "speaker": "UNCLE_BEN",
       "dialogue": "",
-      "action": "Uncle Ben stops in front of the rock.",
-      "emotion": "concerned",
+      "action": "UNCLE_BEN moves through the scene.",
+      "emotion": "focused",
       "intent": "approach",
-      "duration": 2.0,
+      "duration": 5.0,
       "character": {
         "name": "UNCLE_BEN",
-        "animation": "Walk",
+        "animation": "Walking",
         "start_position": {
-          "x": 542.0791873360814,
-          "y": -0.174591064453125,
-          "z": 455.4074131570402
+          "x": 545.0568237304688,
+          "y": -1.7819314002990723,
+          "z": 457.8914794921875
         },
         "end_position": {
-          "x": 545.1522502708813,
-          "y": -0.174591064453125,
-          "z": 457.9679373609405
+          "x": 163.51704711914067,
+          "y": 312.720703125,
+          "z": 137.36744384765626
         },
-        "facing_y": 50.19840766540554,
-        "move_speed": 0.8
+        "facing_y": -130.0329553987204,
+        "move_speed": null
       },
       "camera": {
         "name": "VCam_3",
@@ -176,82 +207,27 @@
     },
     {
       "beat_id": 4,
-      "purpose": "Reaction Shot",
+      "purpose": "react",
       "speaker": "UNCLE_BEN",
-      "dialogue": "",
-      "action": "Uncle Ben looks confused.",
+      "dialogue": "Strange, where did this rock come from?",
+      "action": "stops in front of the rock and looks confused",
       "emotion": "confused",
-      "intent": "react",
+      "intent": "question",
       "duration": 2.0,
       "character": {
         "name": "UNCLE_BEN",
         "animation": "Reaction",
         "start_position": {
-          "x": 545.1522502708813,
-          "y": -0.174591064453125,
-          "z": 457.9679373609405
+          "x": 545.0568237304688,
+          "y": -1.7819314002990723,
+          "z": 457.8914794921875
         },
         "end_position": null,
-        "facing_y": 50.19840766540554,
+        "facing_y": -130.0329553987204,
         "move_speed": null
       },
       "camera": {
         "name": "VCam_4",
-        "shot_type": "close_up",
-        "position": {
-          "x": 0.0,
-          "y": 0.0,
-          "z": 0.0
-        },
-        "rotation": {
-          "x": 0.0,
-          "y": 0.0,
-          "z": 0.0
-        },
-        "fov": 30.0,
-        "look_at": "UNCLE_BEN_HEAD",
-        "follow": "UNCLE_BEN_HEAD",
-        "offset": {
-          "x": 0.25,
-          "y": 0.12,
-          "z": -2.4
-        },
-        "movement": {
-          "type": "follow",
-          "target": "UNCLE_BEN_HEAD",
-          "speed": null,
-          "radius": null
-        },
-        "force_world_position": false
-      },
-      "transition": {
-        "type": "cut",
-        "duration": 0.0
-      }
-    },
-    {
-      "beat_id": 5,
-      "purpose": "Dialogue Shot",
-      "speaker": "UNCLE_BEN",
-      "dialogue": "Strange, where did this rock come from?",
-      "action": "Uncle Ben thinks: Strange, where did this rock come from?",
-      "emotion": "mysterious",
-      "intent": "question",
-      "duration": 3.0,
-      "character": {
-        "name": "UNCLE_BEN",
-        "animation": "Reaction",
-        "start_position": {
-          "x": 545.1522502708813,
-          "y": -0.174591064453125,
-          "z": 457.9679373609405
-        },
-        "end_position": null,
-        "facing_y": 50.19840766540554,
-        "move_speed": null
-      },
-      "camera": {
-        "name": "VCam_5",
         "shot_type": "close_up",
         "position": {
           "x": 0.0,
