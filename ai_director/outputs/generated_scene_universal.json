@@ -6,9 +6,6 @@
     "UNCLE_BEN"
   ],
   "objects": [
-    "PT_Menhir_Rock_02_LOD2",
-    "PT_Menhir_Rock_02_LOD0",
-    "Capsule",
     "ROCK"
   ],
   "locations": [
@@ -17,13 +14,13 @@
   "beats": [
     {
       "beat_id": 1,
-      "purpose": "Establish the scene and introduce PT_Menhir_Rock_02_LOD2.",
+      "purpose": "establish",
       "speaker": "",
       "dialogue": "",
-      "action": "The camera establishes PT_Menhir_Rock_02_LOD2 in the scene.",
-      "emotion": "mysterious",
-      "intent": "establish",
-      "duration": 5.0,
+      "action": "walks toward the rock",
+      "emotion": "neutral",
+      "intent": "approach",
+      "duration": 3.0,
       "character": null,
       "camera": {
         "name": "VCam_1",
@@ -39,8 +36,8 @@
           "z": 0.0
         },
         "fov": 50.0,
-        "look_at": "PT_Menhir_Rock_02_LOD2",
-        "follow": "PT_Menhir_Rock_02_LOD2",
+        "look_at": "ROCK",
+        "follow": "ROCK",
         "offset": {
           "x": 0.0,
           "y": 4.0,
@@ -48,7 +45,7 @@
         },
         "movement": {
           "type": "orbit",
-          "target": "PT_Menhir_Rock_02_LOD2",
+          "target": "ROCK",
           "speed": 5.0,
           "radius": 7.0
         },
@@ -72,16 +69,16 @@
         "name": "UNCLE_BEN",
         "animation": "Walking",
         "start_position": {
-          "x": 545.15185546875,
-          "y": -3.3892314434051514,
-          "z": 457.96832275390625
+          "x": 545.0574951171875,
+          "y": -4.996531009674072,
+          "z": 457.89056396484375
         },
         "end_position": {
-          "x": 546.0339904785156,
-          "y": 313.2574462890625,
-          "z": 458.7239288330078
+          "x": 545.9983337402343,
+          "y": 313.2574157714844,
+          "z": 458.6973541259766
         },
-        "facing_y": 49.417793127242106,
+        "facing_y": 49.38617281391481,
         "move_speed": null
       },
       "camera": {
@@ -120,14 +117,29 @@
     },
     {
       "beat_id": 3,
-      "purpose": "establish",
-      "speaker": "",
+      "purpose": "Show UNCLE_BEN moving through the scene.",
+      "speaker": "UNCLE_BEN",
       "dialogue": "",
-      "action": "walks toward the mysterious rock",
-      "emotion": "neutral",
+      "action": "UNCLE_BEN moves through the scene.",
+      "emotion": "focused",
       "intent": "approach",
-      "duration": 3.0,
-      "character": null,
+      "duration": 5.0,
+      "character": {
+        "name": "UNCLE_BEN",
+        "animation": "Walking",
+        "start_position": {
+          "x": 545.0574951171875,
+          "y": -4.996531009674072,
+          "z": 457.89056396484375
+        },
+        "end_position": {
+          "x": 545.9983337402343,
+          "y": 313.2574157714844,
+          "z": 458.6973541259766
+        },
+        "facing_y": 49.38617281391481,
+        "move_speed": null
+      },
       "camera": {
         "name": "VCam_3",
         "shot_type": "medium_shot",
@@ -142,8 +154,8 @@
           "z": 0.0
         },
         "fov": 55.0,
-        "look_at": "PT_Menhir_Rock_02_LOD2",
-        "follow": "PT_Menhir_Rock_02_LOD2",
+        "look_at": "UNCLE_BEN",
+        "follow": "UNCLE_BEN",
         "offset": {
           "x": 0.0,
           "y": 1.8,
@@ -151,7 +163,7 @@
         },
         "movement": {
           "type": "follow",
-          "target": "PT_Menhir_Rock_02_LOD2",
+          "target": "UNCLE_BEN",
           "speed": 0.8,
           "radius": null
         },
@@ -167,24 +179,79 @@
       "purpose": "reveal",
       "speaker": "UNCLE_BEN",
       "dialogue": "",
-      "action": "stops in front of the mysterious rock and looks confused",
+      "action": "stops in front of the rock and looks confused",
       "emotion": "confused",
       "intent": "react",
-      "duration": 3.0,
+      "duration": 2.0,
       "character": {
         "name": "UNCLE_BEN",
         "animation": "Reaction",
         "start_position": {
-          "x": 545.15185546875,
-          "y": -3.3892314434051514,
-          "z": 457.96832275390625
+          "x": 545.0574951171875,
+          "y": -4.996531009674072,
+          "z": 457.89056396484375
         },
         "end_position": null,
-        "facing_y": 49.41779312725062,
+        "facing_y": 49.38617281391016,
         "move_speed": null
       },
       "camera": {
         "name": "VCam_4",
+        "shot_type": "close_up",
+        "position": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "rotation": {
+          "x": 0.0,
+          "y": 0.0,
+          "z": 0.0
+        },
+        "fov": 30.0,
+        "look_at": "UNCLE_BEN_HEAD",
+        "follow": "UNCLE_BEN_HEAD",
+        "offset": {
+          "x": 0.25,
+          "y": 0.12,
+          "z": -2.4
+        },
+        "movement": {
+          "type": "follow",
+          "target": "UNCLE_BEN_HEAD",
+          "speed": null,
+          "radius": null
+        },
+        "force_world_position": false
+      },
+      "transition": {
+        "type": "cut",
+        "duration": 0.0
+      }
+    },
+    {
+      "beat_id": 5,
+      "purpose": "question",
+      "speaker": "UNCLE_BEN",
+      "dialogue": "Strange, where did this rock come from?",
+      "action": "thinks: Strange, where did this rock come from?",
+      "emotion": "confused",
+      "intent": "question",
+      "duration": 2.0,
+      "character": {
+        "name": "UNCLE_BEN",
+        "animation": "Idle",
+        "start_position": {
+          "x": 545.0574951171875,
+          "y": -4.996531009674072,
+          "z": 457.89056396484375
+        },
+        "end_position": null,
+        "facing_y": 49.38617281391016,
+        "move_speed": null
+      },
+      "camera": {
+        "name": "VCam_5",
         "shot_type": "close_up",
         "position": {
           "x": 0.0,

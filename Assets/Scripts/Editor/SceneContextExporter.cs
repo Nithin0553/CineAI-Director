@@ -10,11 +10,7 @@ using UnityEngine.SceneManagement;
 public class SceneContextExporter : EditorWindow
 {
     private string outputPath = "ai_director/scene_context.generated.json";
-
-    private bool includeInactiveObjects = false;
-    private bool exportOnlyNamedSceneObjects = false;
-    private string optionalCharacterNamesCsv = "";
-    private string optionalObjectNamesCsv = "";
+    private bool includeInactiveEntities = false;
 
     [MenuItem("CineAI/Export Scene Context")]
     public static void ShowWindow()
@@ -24,22 +20,19 @@ public class SceneContextExporter : EditorWindow
 
     private void OnGUI()
     {
-        GUILayout.Label("CineAI Universal Scene Context Exporter", EditorStyles.boldLabel);
+        GUILayout.Label("CineAI Semantic Scene Context Exporter", EditorStyles.boldLabel);
 
         outputPath = EditorGUILayout.TextField("Output Path", outputPath);
+        includeInactiveEntities = EditorGUILayout.Toggle("Include Inactive Entities", includeInactiveEntities);
 
-        GUILayout.Space(8);
-        includeInactiveObjects = EditorGUILayout.Toggle("Include Inactive Objects", includeInactiveObjects);
-        exportOnlyNamedSceneObjects = EditorGUILayout.Toggle("Only Export Listed Names", exportOnlyNamedSceneObjects);
+        GUILayout.Space(10);
 
-        GUILayout.Space(8);
-        GUILayout.Label("Optional Semantic Filters", EditorStyles.boldLabel);
-        optionalCharacterNamesCsv = EditorGUILayout.TextField("Character Names", optionalCharacterNamesCsv);
-        optionalObjectNamesCsv = EditorGUILayout.TextField("Object Names", optionalObjectNamesCsv);
+        EditorGUILayout.HelpBox(
+            "Add CineAIEntity to story-relevant scene objects only: characters, props, and walkable environment surfaces. The exporter will not guess from names.",
+            MessageType.Info
+        );
 
-        GUILayout.Space(12);
-
-        if (GUILayout.Button("Export Universal Scene Context"))
+        if (GUILayout.Button("Export Scene Context"))
             Export();
     }
 
@@ -51,66 +44,43 @@ public class SceneContextExporter : EditorWindow
         data.scene_name = activeScene.name;
         data.locations = new List<string> { activeScene.name };
 
-        List<string> requestedCharacters = SplitCsv(optionalCharacterNamesCsv);
-        List<string> requestedObjects = SplitCsv(optionalObjectNamesCsv);
+        CineAIEntity[] entities = FindCineAIEntities(includeInactiveEntities);
 
-        GameObject[] sceneObjects = GetSceneObjects(includeInactiveObjects);
-
-        HashSet<Transform> characterRoots = FindCharacterRoots(sceneObjects, requestedCharacters);
-        HashSet<Transform> characterHierarchy = BuildHierarchySet(characterRoots);
-
-        foreach (Transform characterRoot in characterRoots)
+        foreach (CineAIEntity entity in entities)
         {
-            if (characterRoot == null)
+            if (entity == null)
                 continue;
 
-            SceneEntity entity = BuildEntity(characterRoot.gameObject, EntityKind.Character, null);
-
-            if (entity != null)
-                data.characters.Add(entity);
-        }
-
-        foreach (GameObject obj in sceneObjects)
-        {
-            if (obj == null)
+            if (entity.role == CineAIEntityRole.Ignore)
                 continue;
 
-            if (!IsSceneObject(obj))
+            if (!entity.gameObject.scene.IsValid())
                 continue;
 
-            if (IsIgnoredSystemObject(obj))
+            SceneEntity exported = BuildEntity(entity);
+
+            if (exported == null)
                 continue;
 
-            if (characterHierarchy.Contains(obj.transform))
-                continue;
-
-            bool namedObject = requestedObjects.Exists(n => NamesMatch(n, obj.name));
-
-            if (exportOnlyNamedSceneObjects && !namedObject)
-                continue;
-
-            if (IsEnvironmentSurface(obj))
+            switch (entity.role)
             {
-                SceneEntity env = BuildEntity(obj, EntityKind.EnvironmentSurface, null);
+                case CineAIEntityRole.Character:
+                    data.characters.Add(exported);
+                    break;
 
-                if (env != null)
-                    data.environment_surfaces.Add(env);
+                case CineAIEntityRole.Object:
+                    data.objects.Add(exported);
+                    break;
 
-                continue;
+                case CineAIEntityRole.EnvironmentSurface:
+                    data.environment_surfaces.Add(exported);
+                    break;
+
+                case CineAIEntityRole.Location:
+                    data.locations.Add(entity.ExportName);
+                    break;
             }
-
-            if (!namedObject && !IsExportableProp(obj))
-                continue;
-
-            SceneEntity prop = BuildEntity(obj, EntityKind.Object, null);
-
-            if (prop != null)
-                data.objects.Add(prop);
         }
-
-        data.characters = RemoveNestedEntities(data.characters);
-        data.objects = RemoveNestedEntities(data.objects);
-        data.environment_surfaces = RemoveNestedEntities(data.environment_surfaces);
 
         data.character_names = ExtractNames(data.characters);
         data.object_names = ExtractNames(data.objects);
@@ -129,124 +99,59 @@ public class SceneContextExporter : EditorWindow
         Debug.Log($"Ground samples exported: {data.ground_samples.Count}");
     }
 
-    private static HashSet<Transform> FindCharacterRoots(GameObject[] sceneObjects, List<string> requestedCharacters)
+    private static CineAIEntity[] FindCineAIEntities(bool includeInactive)
     {
-        HashSet<Transform> roots = new HashSet<Transform>();
+        if (includeInactive)
+            return Resources.FindObjectsOfTypeAll<CineAIEntity>();
 
-        foreach (GameObject obj in sceneObjects)
+        return UnityEngine.Object.FindObjectsByType<CineAIEntity>(FindObjectsSortMode.None);
+    }
+
+    private static SceneEntity BuildEntity(CineAIEntity marker)
+    {
+        GameObject obj = marker.gameObject;
+        BoundsInfo bounds = CalculateBounds(obj);
+
+        if (!bounds.hasAnyBounds && marker.role != CineAIEntityRole.Location)
         {
-            if (obj == null)
-                continue;
-
-            if (!IsSceneObject(obj))
-                continue;
-
-            if (IsIgnoredSystemObject(obj))
-                continue;
-
-            bool namedCharacter = requestedCharacters.Exists(n => NamesMatch(n, obj.name));
-
-            Animator animator = obj.GetComponent<Animator>();
-
-            if (animator == null && !namedCharacter)
-                continue;
-
-            if (!HasUsefulVisibleRenderer(obj))
-                continue;
-
-            Transform root = obj.transform;
-
-            if (namedCharacter)
-                root = obj.transform;
-            else if (animator != null)
-                root = animator.transform;
-
-            if (HasAncestorAnimator(root))
-                continue;
-
-            roots.Add(root);
+            Debug.LogWarning($"CineAIEntity '{marker.ExportName}' has no renderer/collider bounds. It may not produce useful context.");
         }
-
-        return roots;
-    }
-
-    private static bool HasAncestorAnimator(Transform transform)
-    {
-        if (transform == null)
-            return false;
-
-        Transform parent = transform.parent;
-
-        while (parent != null)
-        {
-            if (parent.GetComponent<Animator>() != null)
-                return true;
-
-            parent = parent.parent;
-        }
-
-        return false;
-    }
-
-    private static HashSet<Transform> BuildHierarchySet(HashSet<Transform> roots)
-    {
-        HashSet<Transform> all = new HashSet<Transform>();
-
-        foreach (Transform root in roots)
-            AddHierarchy(root, all);
-
-        return all;
-    }
-
-    private static void AddHierarchy(Transform root, HashSet<Transform> set)
-    {
-        if (root == null)
-            return;
-
-        if (!set.Add(root))
-            return;
-
-        foreach (Transform child in root)
-            AddHierarchy(child, set);
-    }
-
-    private static SceneEntity BuildEntity(GameObject obj, EntityKind kind, string semanticRole)
-    {
-        BoundsInfo boundsInfo = CalculateBounds(obj);
-
-        if (!boundsInfo.hasAnyBounds && kind != EntityKind.Character)
-            return null;
 
         SceneEntity entity = new SceneEntity();
 
-        entity.name = obj.name;
+        entity.name = marker.ExportName;
+        entity.game_object_name = obj.name;
         entity.path = GetHierarchyPath(obj.transform);
-        entity.kind = kind.ToString();
-        entity.semantic_role = semanticRole ?? kind.ToString();
+        entity.kind = marker.role.ToString();
+        entity.semantic_role = marker.role.ToString();
 
         entity.tag = SafeTag(obj);
         entity.layer = LayerMask.LayerToName(obj.layer);
+
+        entity.can_be_focus_target = marker.canBeFocusTarget;
+        entity.can_be_approached = marker.canBeApproached;
+        entity.is_walkable_surface = marker.isWalkableSurface;
 
         entity.transform_position = ToVector(obj.transform.position);
         entity.transform_rotation_euler = ToVector(obj.transform.eulerAngles);
         entity.transform_forward = ToVector(obj.transform.forward);
 
-        entity.has_renderer = boundsInfo.hasRenderer;
-        entity.has_collider = boundsInfo.hasCollider;
+        entity.has_renderer = bounds.hasRenderer;
+        entity.has_collider = bounds.hasCollider;
         entity.has_animator = obj.GetComponent<Animator>() != null || obj.GetComponentInChildren<Animator>() != null;
         entity.has_navmesh_agent = obj.GetComponent<NavMeshAgent>() != null || obj.GetComponentInChildren<NavMeshAgent>() != null;
         entity.has_playable_director = obj.GetComponent<PlayableDirector>() != null || obj.GetComponentInChildren<PlayableDirector>() != null;
 
-        entity.bounds_center = ToVector(boundsInfo.center);
-        entity.bounds_size = ToVector(boundsInfo.size);
-        entity.bounds_min = ToVector(boundsInfo.min);
-        entity.bounds_max = ToVector(boundsInfo.max);
+        entity.bounds_center = ToVector(bounds.center);
+        entity.bounds_size = ToVector(bounds.size);
+        entity.bounds_min = ToVector(bounds.min);
+        entity.bounds_max = ToVector(bounds.max);
 
-        Vector3 visual = boundsInfo.hasAnyBounds ? boundsInfo.center : obj.transform.position;
+        Vector3 visual = bounds.hasAnyBounds ? bounds.center : obj.transform.position;
         entity.visual_position = ToVector(visual);
 
-        entity.bottom_center = ToVector(new Vector3(boundsInfo.center.x, boundsInfo.min.y, boundsInfo.center.z));
-        entity.top_center = ToVector(new Vector3(boundsInfo.center.x, boundsInfo.max.y, boundsInfo.center.z));
+        entity.bottom_center = ToVector(new Vector3(bounds.center.x, bounds.min.y, bounds.center.z));
+        entity.top_center = ToVector(new Vector3(bounds.center.x, bounds.max.y, bounds.center.z));
 
         entity.ground_position = FindGroundBelow(visual, obj.transform);
         entity.estimated_feet_position = entity.ground_position != null ? entity.ground_position : entity.bottom_center;
@@ -266,212 +171,6 @@ public class SceneContextExporter : EditorWindow
         entity.available_animation_clips = FindAnimatorClipNames(obj);
 
         return entity;
-    }
-
-    private static bool IsExportableProp(GameObject obj)
-    {
-        if (obj == null)
-            return false;
-
-        if (IsIgnoredSystemObject(obj))
-            return false;
-
-        if (obj.GetComponent<Animator>() != null || obj.GetComponentInChildren<Animator>() != null)
-            return false;
-
-        BoundsInfo bounds = CalculateBounds(obj);
-
-        if (!bounds.hasAnyBounds)
-            return false;
-
-        if (!bounds.hasRenderer && !bounds.hasCollider)
-            return false;
-
-        if (IsTrivialBounds(bounds))
-            return false;
-
-        if (IsPureChildPart(obj))
-            return false;
-
-        return true;
-    }
-
-    private static bool IsEnvironmentSurface(GameObject obj)
-    {
-        if (obj == null)
-            return false;
-
-        if (obj.GetComponent<Terrain>() != null)
-            return true;
-
-        if (obj.GetComponent<TerrainCollider>() != null)
-            return true;
-
-        Collider collider = obj.GetComponent<Collider>();
-
-        if (collider == null)
-            return false;
-
-        Bounds b = collider.bounds;
-
-        bool broadSurface = b.size.x > b.size.y && b.size.z > b.size.y;
-        bool hasRendererOrCollider = HasUsefulVisibleRenderer(obj) || collider != null;
-
-        return broadSurface && hasRendererOrCollider;
-    }
-
-    private static bool IsPureChildPart(GameObject obj)
-    {
-        if (obj == null)
-            return true;
-
-        if (obj.transform.parent == null)
-            return false;
-
-        bool hasOwnUsefulRenderer = HasOwnUsefulRenderer(obj);
-        bool hasOwnUsefulCollider = HasOwnUsefulCollider(obj);
-
-        if (!hasOwnUsefulRenderer && !hasOwnUsefulCollider)
-            return true;
-
-        if (HasAncestorWithAnimator(obj.transform))
-            return true;
-
-        return false;
-    }
-
-    private static bool HasAncestorWithAnimator(Transform transform)
-    {
-        Transform parent = transform.parent;
-
-        while (parent != null)
-        {
-            if (parent.GetComponent<Animator>() != null)
-                return true;
-
-            parent = parent.parent;
-        }
-
-        return false;
-    }
-
-    private static bool IsIgnoredSystemObject(GameObject obj)
-    {
-        if (obj == null)
-            return true;
-
-        if (!IsSceneObject(obj))
-            return true;
-
-        if (obj.GetComponent<Camera>() != null || obj.GetComponentInChildren<Camera>() != null)
-            return true;
-
-        if (obj.GetComponent<Light>() != null || obj.GetComponentInChildren<Light>() != null)
-            return true;
-
-        if (obj.GetComponent<PlayableDirector>() != null)
-            return true;
-
-        if (obj.GetComponent<AudioListener>() != null || obj.GetComponent<AudioSource>() != null)
-            return true;
-
-        MonoBehaviour[] behaviours = obj.GetComponents<MonoBehaviour>();
-
-        foreach (MonoBehaviour behaviour in behaviours)
-        {
-            if (behaviour == null)
-                continue;
-
-            string typeName = behaviour.GetType().Name;
-
-            bool looksLikeManagerOrGenerator =
-                typeName.Contains("Manager") ||
-                typeName.Contains("Builder") ||
-                typeName.Contains("Compiler") ||
-                typeName.Contains("Resolver") ||
-                typeName.Contains("Planner") ||
-                typeName.Contains("Loader") ||
-                typeName.Contains("Exporter") ||
-                typeName.Contains("Runner") ||
-                typeName.Contains("Validator") ||
-                typeName.Contains("MotionExtension");
-
-            if (looksLikeManagerOrGenerator)
-                return true;
-        }
-
-        return false;
-    }
-
-    private static bool HasUsefulVisibleRenderer(GameObject obj)
-    {
-        Renderer[] renderers = obj.GetComponentsInChildren<Renderer>(true);
-
-        foreach (Renderer renderer in renderers)
-        {
-            if (renderer == null)
-                continue;
-
-            if (!renderer.enabled)
-                continue;
-
-            if (IsTrivialBounds(renderer.bounds))
-                continue;
-
-            return true;
-        }
-
-        return false;
-    }
-
-    private static bool HasOwnUsefulRenderer(GameObject obj)
-    {
-        Renderer renderer = obj.GetComponent<Renderer>();
-
-        if (renderer == null || !renderer.enabled)
-            return false;
-
-        return !IsTrivialBounds(renderer.bounds);
-    }
-
-    private static bool HasOwnUsefulCollider(GameObject obj)
-    {
-        Collider collider = obj.GetComponent<Collider>();
-
-        if (collider == null || !collider.enabled)
-            return false;
-
-        return !IsTrivialBounds(collider.bounds);
-    }
-
-    private static bool IsTrivialBounds(BoundsInfo bounds)
-    {
-        return IsTrivialBounds(bounds.bounds);
-    }
-
-    private static bool IsTrivialBounds(Bounds bounds)
-    {
-        float volume = bounds.size.x * bounds.size.y * bounds.size.z;
-        float maxAxis = Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
-
-        return volume <= Mathf.Epsilon || maxAxis <= Mathf.Epsilon;
-    }
-
-    private static bool IsSceneObject(GameObject obj)
-    {
-        return obj != null && obj.scene.IsValid();
-    }
-
-    private static bool IsEditorOnly(GameObject obj)
-    {
-        try
-        {
-            return obj.CompareTag("EditorOnly");
-        }
-        catch
-        {
-            return false;
-        }
     }
 
     private static BoundsInfo CalculateBounds(GameObject obj)
@@ -532,8 +231,7 @@ public class SceneContextExporter : EditorWindow
 
     private static SceneVector3 FindGroundBelow(Vector3 position, Transform self)
     {
-        BoundsInfo bounds = CalculateBounds(self.gameObject);
-        float rayHeight = Mathf.Max(bounds.size.y, Mathf.Epsilon);
+        float rayHeight = CalculateContextRayHeight(self.gameObject);
         Vector3 rayStart = position + Vector3.up * rayHeight;
         float rayDistance = rayHeight * 3.0f;
 
@@ -546,6 +244,11 @@ public class SceneContextExporter : EditorWindow
         foreach (RaycastHit hit in hits)
         {
             if (hit.transform == self || hit.transform.IsChildOf(self))
+                continue;
+
+            CineAIEntity hitEntity = hit.transform.GetComponentInParent<CineAIEntity>();
+
+            if (hitEntity != null && !hitEntity.isWalkableSurface)
                 continue;
 
             if (hit.point.y > position.y)
@@ -565,16 +268,28 @@ public class SceneContextExporter : EditorWindow
         return ToVector(bestPoint);
     }
 
+    private static float CalculateContextRayHeight(GameObject obj)
+    {
+        BoundsInfo bounds = CalculateBounds(obj);
+        float height = Mathf.Max(bounds.size.y, Mathf.Epsilon);
+        return height;
+    }
+
     private static List<GroundSample> BuildGroundSamples(SceneContextData data)
     {
         List<GroundSample> samples = new List<GroundSample>();
 
         foreach (SceneEntity surface in data.environment_surfaces)
         {
-            GroundSample sample = new GroundSample();
-            sample.near_entity = surface.name;
-            sample.world_position = surface.bounds_center;
-            samples.Add(sample);
+            if (!surface.is_walkable_surface)
+                continue;
+
+            GroundSample centerSample = new GroundSample();
+            centerSample.near_entity = surface.name;
+            centerSample.world_position = surface.bounds_center;
+            samples.Add(centerSample);
+
+            AddSurfaceCornerSamples(samples, surface);
         }
 
         foreach (SceneEntity character in data.characters)
@@ -602,6 +317,29 @@ public class SceneContextExporter : EditorWindow
         return samples;
     }
 
+    private static void AddSurfaceCornerSamples(List<GroundSample> samples, SceneEntity surface)
+    {
+        Vector3 min = FromVector(surface.bounds_min);
+        Vector3 max = FromVector(surface.bounds_max);
+        Vector3 center = FromVector(surface.bounds_center);
+
+        Vector3[] points =
+        {
+            new Vector3(min.x, center.y, min.z),
+            new Vector3(min.x, center.y, max.z),
+            new Vector3(max.x, center.y, min.z),
+            new Vector3(max.x, center.y, max.z)
+        };
+
+        foreach (Vector3 p in points)
+        {
+            GroundSample sample = new GroundSample();
+            sample.near_entity = surface.name;
+            sample.world_position = ToVector(p);
+            samples.Add(sample);
+        }
+    }
+
     private static SceneBounds CalculateSceneBounds(SceneContextData data)
     {
         bool found = false;
@@ -617,7 +355,6 @@ public class SceneContextExporter : EditorWindow
             IncludeEntityBounds(entity, ref bounds, ref found);
 
         SceneBounds sceneBounds = new SceneBounds();
-
         sceneBounds.center = ToVector(bounds.center);
         sceneBounds.size = ToVector(bounds.size);
         sceneBounds.min = ToVector(bounds.min);
@@ -645,28 +382,6 @@ public class SceneContextExporter : EditorWindow
         {
             bounds.Encapsulate(entityBounds);
         }
-    }
-
-    private static List<SceneEntity> RemoveNestedEntities(List<SceneEntity> input)
-    {
-        List<SceneEntity> output = new List<SceneEntity>();
-
-        foreach (SceneEntity entity in input)
-        {
-            if (entity == null)
-                continue;
-
-            bool isNestedInsideExisting = output.Exists(existing =>
-                !string.IsNullOrEmpty(entity.path) &&
-                !string.IsNullOrEmpty(existing.path) &&
-                entity.path.StartsWith(existing.path + "/")
-            );
-
-            if (!isNestedInsideExisting)
-                output.Add(entity);
-        }
-
-        return output;
     }
 
     private static List<string> ExtractNames(List<SceneEntity> entities)
@@ -737,51 +452,6 @@ public class SceneContextExporter : EditorWindow
         AssetDatabase.Refresh();
     }
 
-    private static GameObject[] GetSceneObjects(bool includeInactive)
-    {
-        if (includeInactive)
-            return Resources.FindObjectsOfTypeAll<GameObject>();
-
-        return UnityEngine.Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
-    }
-
-    private static List<string> SplitCsv(string csv)
-    {
-        List<string> result = new List<string>();
-
-        if (string.IsNullOrWhiteSpace(csv))
-            return result;
-
-        string[] parts = csv.Split(',');
-
-        foreach (string part in parts)
-        {
-            string clean = part.Trim();
-
-            if (!string.IsNullOrEmpty(clean))
-                result.Add(clean);
-        }
-
-        return result;
-    }
-
-    private static bool NamesMatch(string a, string b)
-    {
-        return NormalizeName(a) == NormalizeName(b);
-    }
-
-    private static string NormalizeName(string value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-            return "";
-
-        return value.Trim()
-            .ToLowerInvariant()
-            .Replace("_", "")
-            .Replace(" ", "")
-            .Replace("-", "");
-    }
-
     private static string SafeTag(GameObject obj)
     {
         try
@@ -828,13 +498,6 @@ public class SceneContextExporter : EditorWindow
         return new Vector3(v.x, v.y, v.z);
     }
 
-    private enum EntityKind
-    {
-        Character,
-        Object,
-        EnvironmentSurface
-    }
-
     private class BoundsInfo
     {
         public Bounds bounds;
@@ -873,12 +536,17 @@ public class SceneContextData
 public class SceneEntity
 {
     public string name;
+    public string game_object_name;
     public string path;
     public string kind;
     public string semantic_role;
 
     public string tag;
     public string layer;
+
+    public bool can_be_focus_target;
+    public bool can_be_approached;
+    public bool is_walkable_surface;
 
     public SceneVector3 transform_position;
     public SceneVector3 transform_rotation_euler;
