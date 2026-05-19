@@ -4,13 +4,13 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.AI;
+using UnityEngine.Playables;
 using UnityEngine.SceneManagement;
 
 public class SceneContextExporter : EditorWindow
 {
     private string outputPath = "ai_director/scene_context.generated.json";
 
-    [Header("Export Filters")]
     private bool includeInactiveObjects = false;
     private bool exportOnlyNamedSceneObjects = false;
     private string optionalCharacterNamesCsv = "";
@@ -33,7 +33,7 @@ public class SceneContextExporter : EditorWindow
         exportOnlyNamedSceneObjects = EditorGUILayout.Toggle("Only Export Listed Names", exportOnlyNamedSceneObjects);
 
         GUILayout.Space(8);
-        GUILayout.Label("Optional Filters", EditorStyles.boldLabel);
+        GUILayout.Label("Optional Semantic Filters", EditorStyles.boldLabel);
         optionalCharacterNamesCsv = EditorGUILayout.TextField("Character Names", optionalCharacterNamesCsv);
         optionalObjectNamesCsv = EditorGUILayout.TextField("Object Names", optionalObjectNamesCsv);
 
@@ -49,72 +49,76 @@ public class SceneContextExporter : EditorWindow
 
         Scene activeScene = SceneManager.GetActiveScene();
         data.scene_name = activeScene.name;
+        data.locations = new List<string> { activeScene.name };
 
         List<string> requestedCharacters = SplitCsv(optionalCharacterNamesCsv);
         List<string> requestedObjects = SplitCsv(optionalObjectNamesCsv);
 
-        GameObject[] allObjects = GetSceneObjects(includeInactiveObjects);
+        GameObject[] sceneObjects = GetSceneObjects(includeInactiveObjects);
 
-        foreach (GameObject obj in allObjects)
+        HashSet<Transform> characterRoots = FindCharacterRoots(sceneObjects, requestedCharacters);
+        HashSet<Transform> characterHierarchy = BuildHierarchySet(characterRoots);
+
+        foreach (Transform characterRoot in characterRoots)
+        {
+            if (characterRoot == null)
+                continue;
+
+            SceneEntity entity = BuildEntity(characterRoot.gameObject, EntityKind.Character, null);
+
+            if (entity != null)
+                data.characters.Add(entity);
+        }
+
+        foreach (GameObject obj in sceneObjects)
         {
             if (obj == null)
                 continue;
 
-            if (!obj.scene.IsValid())
+            if (!IsSceneObject(obj))
                 continue;
 
-            if (IsEditorOnly(obj))
+            if (IsIgnoredSystemObject(obj))
                 continue;
 
-            SceneEntity entity = BuildEntity(obj);
-
-            if (entity == null)
+            if (characterHierarchy.Contains(obj.transform))
                 continue;
 
-            bool namedAsCharacter = requestedCharacters.Exists(n => NamesMatch(n, obj.name));
-            bool namedAsObject = requestedObjects.Exists(n => NamesMatch(n, obj.name));
+            bool namedObject = requestedObjects.Exists(n => NamesMatch(n, obj.name));
 
-            bool detectedCharacter = IsLikelyCharacter(obj);
-            bool detectedEnvironment = IsLikelyEnvironment(obj);
-            bool detectedCamera = obj.GetComponentInChildren<Camera>() != null;
-            bool detectedLight = obj.GetComponentInChildren<Light>() != null;
+            if (exportOnlyNamedSceneObjects && !namedObject)
+                continue;
 
-            if (exportOnlyNamedSceneObjects)
+            if (IsEnvironmentSurface(obj))
             {
-                if (namedAsCharacter)
-                    data.characters.Add(entity);
-                else if (namedAsObject)
-                    data.objects.Add(entity);
+                SceneEntity env = BuildEntity(obj, EntityKind.EnvironmentSurface, null);
+
+                if (env != null)
+                    data.environment_surfaces.Add(env);
 
                 continue;
             }
 
-            if (namedAsCharacter || detectedCharacter)
-            {
-                data.characters.Add(entity);
-            }
-            else if (detectedEnvironment)
-            {
-                data.environment_surfaces.Add(entity);
-            }
-            else if (!detectedCamera && !detectedLight)
-            {
-                data.objects.Add(entity);
-            }
+            if (!namedObject && !IsExportableProp(obj))
+                continue;
+
+            SceneEntity prop = BuildEntity(obj, EntityKind.Object, null);
+
+            if (prop != null)
+                data.objects.Add(prop);
         }
 
-        data.characters = RemoveNestedDuplicates(data.characters);
-        data.objects = RemoveNestedDuplicates(data.objects);
-        data.environment_surfaces = RemoveNestedDuplicates(data.environment_surfaces);
-
-        data.scene_bounds = CalculateSceneBounds(data);
-        data.available_animations = FindAnimationClipNames();
-        data.ground_samples = BuildGroundSamples(data);
+        data.characters = RemoveNestedEntities(data.characters);
+        data.objects = RemoveNestedEntities(data.objects);
+        data.environment_surfaces = RemoveNestedEntities(data.environment_surfaces);
 
         data.character_names = ExtractNames(data.characters);
         data.object_names = ExtractNames(data.objects);
         data.environment_surface_names = ExtractNames(data.environment_surfaces);
-        data.locations = new List<string> { activeScene.name };
+
+        data.scene_bounds = CalculateSceneBounds(data);
+        data.available_animations = FindAnimationClipNames();
+        data.ground_samples = BuildGroundSamples(data);
 
         WriteJson(data);
 
@@ -125,14 +129,102 @@ public class SceneContextExporter : EditorWindow
         Debug.Log($"Ground samples exported: {data.ground_samples.Count}");
     }
 
-    private SceneEntity BuildEntity(GameObject obj)
+    private static HashSet<Transform> FindCharacterRoots(GameObject[] sceneObjects, List<string> requestedCharacters)
+    {
+        HashSet<Transform> roots = new HashSet<Transform>();
+
+        foreach (GameObject obj in sceneObjects)
+        {
+            if (obj == null)
+                continue;
+
+            if (!IsSceneObject(obj))
+                continue;
+
+            if (IsIgnoredSystemObject(obj))
+                continue;
+
+            bool namedCharacter = requestedCharacters.Exists(n => NamesMatch(n, obj.name));
+
+            Animator animator = obj.GetComponent<Animator>();
+
+            if (animator == null && !namedCharacter)
+                continue;
+
+            if (!HasUsefulVisibleRenderer(obj))
+                continue;
+
+            Transform root = obj.transform;
+
+            if (namedCharacter)
+                root = obj.transform;
+            else if (animator != null)
+                root = animator.transform;
+
+            if (HasAncestorAnimator(root))
+                continue;
+
+            roots.Add(root);
+        }
+
+        return roots;
+    }
+
+    private static bool HasAncestorAnimator(Transform transform)
+    {
+        if (transform == null)
+            return false;
+
+        Transform parent = transform.parent;
+
+        while (parent != null)
+        {
+            if (parent.GetComponent<Animator>() != null)
+                return true;
+
+            parent = parent.parent;
+        }
+
+        return false;
+    }
+
+    private static HashSet<Transform> BuildHierarchySet(HashSet<Transform> roots)
+    {
+        HashSet<Transform> all = new HashSet<Transform>();
+
+        foreach (Transform root in roots)
+            AddHierarchy(root, all);
+
+        return all;
+    }
+
+    private static void AddHierarchy(Transform root, HashSet<Transform> set)
+    {
+        if (root == null)
+            return;
+
+        if (!set.Add(root))
+            return;
+
+        foreach (Transform child in root)
+            AddHierarchy(child, set);
+    }
+
+    private static SceneEntity BuildEntity(GameObject obj, EntityKind kind, string semanticRole)
     {
         BoundsInfo boundsInfo = CalculateBounds(obj);
 
+        if (!boundsInfo.hasAnyBounds && kind != EntityKind.Character)
+            return null;
+
         SceneEntity entity = new SceneEntity();
+
         entity.name = obj.name;
         entity.path = GetHierarchyPath(obj.transform);
-        entity.tag = obj.tag;
+        entity.kind = kind.ToString();
+        entity.semantic_role = semanticRole ?? kind.ToString();
+
+        entity.tag = SafeTag(obj);
         entity.layer = LayerMask.LayerToName(obj.layer);
 
         entity.transform_position = ToVector(obj.transform.position);
@@ -141,22 +233,23 @@ public class SceneContextExporter : EditorWindow
 
         entity.has_renderer = boundsInfo.hasRenderer;
         entity.has_collider = boundsInfo.hasCollider;
-        entity.has_animator = obj.GetComponentInChildren<Animator>() != null;
-        entity.has_navmesh_agent = obj.GetComponentInChildren<NavMeshAgent>() != null;
+        entity.has_animator = obj.GetComponent<Animator>() != null || obj.GetComponentInChildren<Animator>() != null;
+        entity.has_navmesh_agent = obj.GetComponent<NavMeshAgent>() != null || obj.GetComponentInChildren<NavMeshAgent>() != null;
+        entity.has_playable_director = obj.GetComponent<PlayableDirector>() != null || obj.GetComponentInChildren<PlayableDirector>() != null;
 
         entity.bounds_center = ToVector(boundsInfo.center);
         entity.bounds_size = ToVector(boundsInfo.size);
         entity.bounds_min = ToVector(boundsInfo.min);
         entity.bounds_max = ToVector(boundsInfo.max);
 
-        entity.visual_position = ToVector(boundsInfo.hasAnyBounds ? boundsInfo.center : obj.transform.position);
+        Vector3 visual = boundsInfo.hasAnyBounds ? boundsInfo.center : obj.transform.position;
+        entity.visual_position = ToVector(visual);
+
         entity.bottom_center = ToVector(new Vector3(boundsInfo.center.x, boundsInfo.min.y, boundsInfo.center.z));
         entity.top_center = ToVector(new Vector3(boundsInfo.center.x, boundsInfo.max.y, boundsInfo.center.z));
 
-        entity.ground_position = FindGroundBelow(boundsInfo.hasAnyBounds ? boundsInfo.center : obj.transform.position, obj.transform);
-        entity.estimated_feet_position = entity.ground_position != null
-            ? entity.ground_position
-            : entity.bottom_center;
+        entity.ground_position = FindGroundBelow(visual, obj.transform);
+        entity.estimated_feet_position = entity.ground_position != null ? entity.ground_position : entity.bottom_center;
 
         entity.estimated_body_position = ToVector(Vector3.Lerp(
             FromVector(entity.bottom_center),
@@ -175,30 +268,210 @@ public class SceneContextExporter : EditorWindow
         return entity;
     }
 
-    private static bool IsLikelyCharacter(GameObject obj)
+    private static bool IsExportableProp(GameObject obj)
     {
-        if (obj.GetComponentInChildren<Animator>() != null)
-            return true;
+        if (obj == null)
+            return false;
 
-        string n = NormalizeName(obj.name);
-        return n.Contains("character") || n.Contains("player") || n.Contains("npc") || n.Contains("hero");
+        if (IsIgnoredSystemObject(obj))
+            return false;
+
+        if (obj.GetComponent<Animator>() != null || obj.GetComponentInChildren<Animator>() != null)
+            return false;
+
+        BoundsInfo bounds = CalculateBounds(obj);
+
+        if (!bounds.hasAnyBounds)
+            return false;
+
+        if (!bounds.hasRenderer && !bounds.hasCollider)
+            return false;
+
+        if (IsTrivialBounds(bounds))
+            return false;
+
+        if (IsPureChildPart(obj))
+            return false;
+
+        return true;
     }
 
-    private static bool IsLikelyEnvironment(GameObject obj)
+    private static bool IsEnvironmentSurface(GameObject obj)
     {
+        if (obj == null)
+            return false;
+
         if (obj.GetComponent<Terrain>() != null)
             return true;
 
         if (obj.GetComponent<TerrainCollider>() != null)
             return true;
 
-        string n = NormalizeName(obj.name);
-        return n.Contains("terrain") || n.Contains("ground") || n.Contains("floor") || n.Contains("landscape");
+        Collider collider = obj.GetComponent<Collider>();
+
+        if (collider == null)
+            return false;
+
+        Bounds b = collider.bounds;
+
+        bool broadSurface = b.size.x > b.size.y && b.size.z > b.size.y;
+        bool hasRendererOrCollider = HasUsefulVisibleRenderer(obj) || collider != null;
+
+        return broadSurface && hasRendererOrCollider;
+    }
+
+    private static bool IsPureChildPart(GameObject obj)
+    {
+        if (obj == null)
+            return true;
+
+        if (obj.transform.parent == null)
+            return false;
+
+        bool hasOwnUsefulRenderer = HasOwnUsefulRenderer(obj);
+        bool hasOwnUsefulCollider = HasOwnUsefulCollider(obj);
+
+        if (!hasOwnUsefulRenderer && !hasOwnUsefulCollider)
+            return true;
+
+        if (HasAncestorWithAnimator(obj.transform))
+            return true;
+
+        return false;
+    }
+
+    private static bool HasAncestorWithAnimator(Transform transform)
+    {
+        Transform parent = transform.parent;
+
+        while (parent != null)
+        {
+            if (parent.GetComponent<Animator>() != null)
+                return true;
+
+            parent = parent.parent;
+        }
+
+        return false;
+    }
+
+    private static bool IsIgnoredSystemObject(GameObject obj)
+    {
+        if (obj == null)
+            return true;
+
+        if (!IsSceneObject(obj))
+            return true;
+
+        if (obj.GetComponent<Camera>() != null || obj.GetComponentInChildren<Camera>() != null)
+            return true;
+
+        if (obj.GetComponent<Light>() != null || obj.GetComponentInChildren<Light>() != null)
+            return true;
+
+        if (obj.GetComponent<PlayableDirector>() != null)
+            return true;
+
+        if (obj.GetComponent<AudioListener>() != null || obj.GetComponent<AudioSource>() != null)
+            return true;
+
+        MonoBehaviour[] behaviours = obj.GetComponents<MonoBehaviour>();
+
+        foreach (MonoBehaviour behaviour in behaviours)
+        {
+            if (behaviour == null)
+                continue;
+
+            string typeName = behaviour.GetType().Name;
+
+            bool looksLikeManagerOrGenerator =
+                typeName.Contains("Manager") ||
+                typeName.Contains("Builder") ||
+                typeName.Contains("Compiler") ||
+                typeName.Contains("Resolver") ||
+                typeName.Contains("Planner") ||
+                typeName.Contains("Loader") ||
+                typeName.Contains("Exporter") ||
+                typeName.Contains("Runner") ||
+                typeName.Contains("Validator") ||
+                typeName.Contains("MotionExtension");
+
+            if (looksLikeManagerOrGenerator)
+                return true;
+        }
+
+        return false;
+    }
+
+    private static bool HasUsefulVisibleRenderer(GameObject obj)
+    {
+        Renderer[] renderers = obj.GetComponentsInChildren<Renderer>(true);
+
+        foreach (Renderer renderer in renderers)
+        {
+            if (renderer == null)
+                continue;
+
+            if (!renderer.enabled)
+                continue;
+
+            if (IsTrivialBounds(renderer.bounds))
+                continue;
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool HasOwnUsefulRenderer(GameObject obj)
+    {
+        Renderer renderer = obj.GetComponent<Renderer>();
+
+        if (renderer == null || !renderer.enabled)
+            return false;
+
+        return !IsTrivialBounds(renderer.bounds);
+    }
+
+    private static bool HasOwnUsefulCollider(GameObject obj)
+    {
+        Collider collider = obj.GetComponent<Collider>();
+
+        if (collider == null || !collider.enabled)
+            return false;
+
+        return !IsTrivialBounds(collider.bounds);
+    }
+
+    private static bool IsTrivialBounds(BoundsInfo bounds)
+    {
+        return IsTrivialBounds(bounds.bounds);
+    }
+
+    private static bool IsTrivialBounds(Bounds bounds)
+    {
+        float volume = bounds.size.x * bounds.size.y * bounds.size.z;
+        float maxAxis = Mathf.Max(bounds.size.x, Mathf.Max(bounds.size.y, bounds.size.z));
+
+        return volume <= Mathf.Epsilon || maxAxis <= Mathf.Epsilon;
+    }
+
+    private static bool IsSceneObject(GameObject obj)
+    {
+        return obj != null && obj.scene.IsValid();
     }
 
     private static bool IsEditorOnly(GameObject obj)
     {
-        return obj.CompareTag("EditorOnly");
+        try
+        {
+            return obj.CompareTag("EditorOnly");
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static BoundsInfo CalculateBounds(GameObject obj)
@@ -206,38 +479,46 @@ public class SceneContextExporter : EditorWindow
         BoundsInfo info = new BoundsInfo();
 
         Renderer[] renderers = obj.GetComponentsInChildren<Renderer>(true);
-        foreach (Renderer r in renderers)
+
+        foreach (Renderer renderer in renderers)
         {
-            if (r == null)
+            if (renderer == null)
+                continue;
+
+            if (!renderer.enabled)
                 continue;
 
             if (!info.hasAnyBounds)
             {
-                info.bounds = r.bounds;
+                info.bounds = renderer.bounds;
                 info.hasAnyBounds = true;
             }
             else
             {
-                info.bounds.Encapsulate(r.bounds);
+                info.bounds.Encapsulate(renderer.bounds);
             }
 
             info.hasRenderer = true;
         }
 
         Collider[] colliders = obj.GetComponentsInChildren<Collider>(true);
-        foreach (Collider c in colliders)
+
+        foreach (Collider collider in colliders)
         {
-            if (c == null)
+            if (collider == null)
+                continue;
+
+            if (!collider.enabled)
                 continue;
 
             if (!info.hasAnyBounds)
             {
-                info.bounds = c.bounds;
+                info.bounds = collider.bounds;
                 info.hasAnyBounds = true;
             }
             else
             {
-                info.bounds.Encapsulate(c.bounds);
+                info.bounds.Encapsulate(collider.bounds);
             }
 
             info.hasCollider = true;
@@ -251,14 +532,15 @@ public class SceneContextExporter : EditorWindow
 
     private static SceneVector3 FindGroundBelow(Vector3 position, Transform self)
     {
-        float rayHeight = Mathf.Max(CalculateObjectHeight(self.gameObject), Mathf.Epsilon);
+        BoundsInfo bounds = CalculateBounds(self.gameObject);
+        float rayHeight = Mathf.Max(bounds.size.y, Mathf.Epsilon);
         Vector3 rayStart = position + Vector3.up * rayHeight;
         float rayDistance = rayHeight * 3.0f;
 
         RaycastHit[] hits = Physics.RaycastAll(rayStart, Vector3.down, rayDistance, ~0);
 
-        float bestY = float.NegativeInfinity;
         bool found = false;
+        float bestY = float.NegativeInfinity;
         Vector3 bestPoint = position;
 
         foreach (RaycastHit hit in hits)
@@ -283,64 +565,41 @@ public class SceneContextExporter : EditorWindow
         return ToVector(bestPoint);
     }
 
-    private static float CalculateObjectHeight(GameObject obj)
-    {
-        BoundsInfo bounds = CalculateBounds(obj);
-        return Mathf.Max(bounds.size.y, Mathf.Epsilon);
-    }
-
-    private List<GroundSample> BuildGroundSamples(SceneContextData data)
+    private static List<GroundSample> BuildGroundSamples(SceneContextData data)
     {
         List<GroundSample> samples = new List<GroundSample>();
 
-        foreach (SceneEntity obj in data.objects)
+        foreach (SceneEntity surface in data.environment_surfaces)
         {
-            SceneVector3 visual = obj.visual_position;
-            SceneVector3 ground = FindGroundBelow(FromVector(visual), FindTransformByPath(obj.path));
-
-            if (ground == null)
-                continue;
-
             GroundSample sample = new GroundSample();
-            sample.near_entity = obj.name;
-            sample.world_position = ground;
+            sample.near_entity = surface.name;
+            sample.world_position = surface.bounds_center;
             samples.Add(sample);
         }
 
         foreach (SceneEntity character in data.characters)
         {
-            SceneVector3 visual = character.visual_position;
-            SceneVector3 ground = FindGroundBelow(FromVector(visual), FindTransformByPath(character.path));
-
-            if (ground == null)
+            if (character.ground_position == null)
                 continue;
 
             GroundSample sample = new GroundSample();
             sample.near_entity = character.name;
-            sample.world_position = ground;
+            sample.world_position = character.ground_position;
+            samples.Add(sample);
+        }
+
+        foreach (SceneEntity obj in data.objects)
+        {
+            if (obj.ground_position == null)
+                continue;
+
+            GroundSample sample = new GroundSample();
+            sample.near_entity = obj.name;
+            sample.world_position = obj.ground_position;
             samples.Add(sample);
         }
 
         return samples;
-    }
-
-    private static Transform FindTransformByPath(string path)
-    {
-        GameObject[] allObjects = Resources.FindObjectsOfTypeAll<GameObject>();
-
-        foreach (GameObject obj in allObjects)
-        {
-            if (obj == null)
-                continue;
-
-            if (!obj.scene.IsValid())
-                continue;
-
-            if (GetHierarchyPath(obj.transform) == path)
-                return obj.transform;
-        }
-
-        return null;
     }
 
     private static SceneBounds CalculateSceneBounds(SceneContextData data)
@@ -358,40 +617,52 @@ public class SceneContextExporter : EditorWindow
             IncludeEntityBounds(entity, ref bounds, ref found);
 
         SceneBounds sceneBounds = new SceneBounds();
+
         sceneBounds.center = ToVector(bounds.center);
         sceneBounds.size = ToVector(bounds.size);
         sceneBounds.min = ToVector(bounds.min);
         sceneBounds.max = ToVector(bounds.max);
+
         return sceneBounds;
     }
 
     private static void IncludeEntityBounds(SceneEntity entity, ref Bounds bounds, ref bool found)
     {
-        Vector3 center = FromVector(entity.bounds_center);
-        Vector3 size = FromVector(entity.bounds_size);
+        if (entity == null || entity.bounds_center == null || entity.bounds_size == null)
+            return;
+
+        Bounds entityBounds = new Bounds(
+            FromVector(entity.bounds_center),
+            FromVector(entity.bounds_size)
+        );
 
         if (!found)
         {
-            bounds = new Bounds(center, size);
+            bounds = entityBounds;
             found = true;
         }
         else
         {
-            bounds.Encapsulate(new Bounds(center, size));
+            bounds.Encapsulate(entityBounds);
         }
     }
 
-    private static List<SceneEntity> RemoveNestedDuplicates(List<SceneEntity> input)
+    private static List<SceneEntity> RemoveNestedEntities(List<SceneEntity> input)
     {
         List<SceneEntity> output = new List<SceneEntity>();
 
         foreach (SceneEntity entity in input)
         {
-            bool parentAlreadyIncluded = output.Exists(existing =>
+            if (entity == null)
+                continue;
+
+            bool isNestedInsideExisting = output.Exists(existing =>
+                !string.IsNullOrEmpty(entity.path) &&
+                !string.IsNullOrEmpty(existing.path) &&
                 entity.path.StartsWith(existing.path + "/")
             );
 
-            if (!parentAlreadyIncluded)
+            if (!isNestedInsideExisting)
                 output.Add(entity);
         }
 
@@ -404,6 +675,9 @@ public class SceneContextExporter : EditorWindow
 
         foreach (SceneEntity entity in entities)
         {
+            if (entity == null)
+                continue;
+
             if (!names.Contains(entity.name))
                 names.Add(entity.name);
         }
@@ -431,7 +705,10 @@ public class SceneContextExporter : EditorWindow
     private static List<string> FindAnimatorClipNames(GameObject obj)
     {
         List<string> clips = new List<string>();
-        Animator animator = obj.GetComponentInChildren<Animator>();
+        Animator animator = obj.GetComponent<Animator>();
+
+        if (animator == null)
+            animator = obj.GetComponentInChildren<Animator>();
 
         if (animator == null || animator.runtimeAnimatorController == null)
             return clips;
@@ -477,9 +754,10 @@ public class SceneContextExporter : EditorWindow
 
         string[] parts = csv.Split(',');
 
-        foreach (string p in parts)
+        foreach (string part in parts)
         {
-            string clean = p.Trim();
+            string clean = part.Trim();
+
             if (!string.IsNullOrEmpty(clean))
                 result.Add(clean);
         }
@@ -494,11 +772,26 @@ public class SceneContextExporter : EditorWindow
 
     private static string NormalizeName(string value)
     {
+        if (string.IsNullOrWhiteSpace(value))
+            return "";
+
         return value.Trim()
             .ToLowerInvariant()
             .Replace("_", "")
             .Replace(" ", "")
             .Replace("-", "");
+    }
+
+    private static string SafeTag(GameObject obj)
+    {
+        try
+        {
+            return obj.tag;
+        }
+        catch
+        {
+            return "";
+        }
     }
 
     private static string GetHierarchyPath(Transform transform)
@@ -533,6 +826,13 @@ public class SceneContextExporter : EditorWindow
             return Vector3.zero;
 
         return new Vector3(v.x, v.y, v.z);
+    }
+
+    private enum EntityKind
+    {
+        Character,
+        Object,
+        EnvironmentSurface
     }
 
     private class BoundsInfo
@@ -574,6 +874,9 @@ public class SceneEntity
 {
     public string name;
     public string path;
+    public string kind;
+    public string semantic_role;
+
     public string tag;
     public string layer;
 
@@ -585,6 +888,7 @@ public class SceneEntity
     public bool has_collider;
     public bool has_animator;
     public bool has_navmesh_agent;
+    public bool has_playable_director;
 
     public SceneVector3 bounds_center;
     public SceneVector3 bounds_size;

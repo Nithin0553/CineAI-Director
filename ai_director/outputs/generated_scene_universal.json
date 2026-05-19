@@ -3,41 +3,13 @@
   "scene_id": "scene_001",
   "scene_title": "Generated Cutscene",
   "characters": [
-    "UNCLE_BEN",
-    "PlayerCapsule",
-    "NestedParent_Unpack"
+    "UNCLE_BEN"
   ],
   "objects": [
-    "mixamorig:RightHandThumb4",
-    "mixamorig:RightHandThumb3",
-    "mixamorig:RightHandIndex4",
-    "CineAI_Manager",
-    "mixamorig:LeftHandThumb3",
-    "mixamorig:LeftHandIndex1",
-    "mixamorig:HeadTop_End",
-    "mixamorig:RightHandThumb2",
-    "mixamorig:Shoes_Geo",
-    "mixamorig:RightHandRing4",
-    "mixamorig:RightHandMiddle1",
-    "mixamorig:LeftEye",
-    "mixamorig:RightHandIndex3",
-    "mixamorig:LeftHandMiddle4",
-    "mixamorig:RightHand",
-    "mixamorig:Hips",
+    "PT_Menhir_Rock_02_LOD2",
+    "PT_Menhir_Rock_02_LOD0",
     "Capsule",
-    "mixamorig:Pants_Geo",
-    "mixamorig:Cigar_Geo",
-    "mixamorig:R_Eye_Geo",
-    "mixamorig:Arms_Geo",
-    "VCam_2",
-    "mixamorig:Meshes",
-    "VCam_5",
-    "ROCK",
-    "GeneratedCameras",
-    "UNCLE_BEN_FEET_ANCHOR",
-    "UNCLE_BEN_HEAD_ANCHOR",
-    "ENVIRONMENT",
-    "Global Volume"
+    "ROCK"
   ],
   "locations": [
     "SampleScene"
@@ -45,13 +17,13 @@
   "beats": [
     {
       "beat_id": 1,
-      "purpose": "establish",
+      "purpose": "Establish the scene and introduce PT_Menhir_Rock_02_LOD2.",
       "speaker": "",
       "dialogue": "",
-      "action": "walks toward the mysterious rock",
+      "action": "The camera establishes PT_Menhir_Rock_02_LOD2 in the scene.",
       "emotion": "mysterious",
-      "intent": "approach",
-      "duration": 3.0,
+      "intent": "establish",
+      "duration": 5.0,
       "character": null,
       "camera": {
         "name": "VCam_1",
@@ -67,8 +39,8 @@
           "z": 0.0
         },
         "fov": 50.0,
-        "look_at": "mixamorig:RightHandThumb4",
-        "follow": "mixamorig:RightHandThumb4",
+        "look_at": "PT_Menhir_Rock_02_LOD2",
+        "follow": "PT_Menhir_Rock_02_LOD2",
         "offset": {
           "x": 0.0,
           "y": 4.0,
@@ -76,7 +48,7 @@
         },
         "movement": {
           "type": "orbit",
-          "target": "mixamorig:RightHandThumb4",
+          "target": "PT_Menhir_Rock_02_LOD2",
           "speed": 5.0,
           "radius": 7.0
         },
@@ -100,16 +72,16 @@
         "name": "UNCLE_BEN",
         "animation": "Walking",
         "start_position": {
-          "x": 545.0568237304688,
-          "y": -1.7819314002990723,
-          "z": 457.8914794921875
+          "x": 545.15185546875,
+          "y": -3.3892314434051514,
+          "z": 457.96832275390625
         },
         "end_position": {
-          "x": 163.51704711914067,
-          "y": 312.720703125,
-          "z": 137.36744384765626
+          "x": 546.0339904785156,
+          "y": 313.2574462890625,
+          "z": 458.7239288330078
         },
-        "facing_y": -130.0329553987204,
+        "facing_y": 49.417793127242106,
         "move_speed": null
       },
       "camera": {
@@ -148,29 +120,14 @@
     },
     {
       "beat_id": 3,
-      "purpose": "Show UNCLE_BEN moving through the scene.",
-      "speaker": "UNCLE_BEN",
+      "purpose": "establish",
+      "speaker": "",
       "dialogue": "",
-      "action": "UNCLE_BEN moves through the scene.",
-      "emotion": "focused",
+      "action": "walks toward the mysterious rock",
+      "emotion": "neutral",
       "intent": "approach",
-      "duration": 5.0,
-      "character": {
-        "name": "UNCLE_BEN",
-        "animation": "Walking",
-        "start_position": {
-          "x": 545.0568237304688,
-          "y": -1.7819314002990723,
-          "z": 457.8914794921875
-        },
-        "end_position": {
-          "x": 163.51704711914067,
-          "y": 312.720703125,
-          "z": 137.36744384765626
-        },
-        "facing_y": -130.0329553987204,
-        "move_speed": null
-      },
+      "duration": 3.0,
+      "character": null,
       "camera": {
         "name": "VCam_3",
         "shot_type": "medium_shot",
@@ -185,8 +142,8 @@
           "z": 0.0
         },
         "fov": 55.0,
-        "look_at": "UNCLE_BEN",
-        "follow": "UNCLE_BEN",
+        "look_at": "PT_Menhir_Rock_02_LOD2",
+        "follow": "PT_Menhir_Rock_02_LOD2",
         "offset": {
           "x": 0.0,
           "y": 1.8,
@@ -194,7 +151,7 @@
         },
         "movement": {
           "type": "follow",
-          "target": "UNCLE_BEN",
+          "target": "PT_Menhir_Rock_02_LOD2",
           "speed": 0.8,
           "radius": null
         },
@@ -207,23 +164,23 @@
     },
     {
       "beat_id": 4,
-      "purpose": "react",
+      "purpose": "reveal",
       "speaker": "UNCLE_BEN",
-      "dialogue": "Strange, where did this rock come from?",
-      "action": "stops in front of the rock and looks confused",
+      "dialogue": "",
+      "action": "stops in front of the mysterious rock and looks confused",
       "emotion": "confused",
-      "intent": "question",
-      "duration": 2.0,
+      "intent": "react",
+      "duration": 3.0,
       "character": {
         "name": "UNCLE_BEN",
         "animation": "Reaction",
         "start_position": {
-          "x": 545.0568237304688,
-          "y": -1.7819314002990723,
-          "z": 457.8914794921875
+          "x": 545.15185546875,
+          "y": -3.3892314434051514,
+          "z": 457.96832275390625
         },
         "end_position": null,
-        "facing_y": -130.0329553987204,
+        "facing_y": 49.41779312725062,
         "move_speed": null
       },
       "camera": {
